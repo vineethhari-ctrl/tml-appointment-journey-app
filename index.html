@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Appointment Journey by Role</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="brand" aria-label="Tata Motors Service Transformation"><b>TATA MOTORS</b><span class="sep" aria-hidden="true"></span><i>Service Transformation</i></div>
+    <span class="module-name" id="moduleName">Appointment</span>
+    <span class="demo-note">Demo · placeholder data only</span>
+    <div class="persona" id="persona" aria-live="polite"></div>
+  </header>
+  <nav class="roles" id="roles" aria-label="Role switcher"></nav>
+  <div class="layout">
+    <nav class="sidenav" id="tabs" aria-label="Screens for this role"></nav>
+    <main id="main" tabindex="-1"></main>
+  </div>
+  <div id="modal-root"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="data/model.js"></script>
+  <script src="data/data.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/appointment.js"></script>
+  <script>App.start();</script>
+</body>
+</html>
