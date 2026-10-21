@@ -4,7 +4,7 @@
 (function () {
   const M = window.MODEL, D = window.DATA;
   const App = window.App = { M, D, modules: {}, state: {
-    role: "NSM", tab: null, unit: null, bd: "All", page: 1, filters: {}, selected: new Set(), escalations: [], module: "appointment"
+    role: "NSM", tab: null, unit: null, bd: "All", page: 1, filters: {}, selected: new Set(), escalations: [], module: "appointment", ref: null, tml: null, tmlState: null
   } };
   const S = App.state;
 
@@ -14,17 +14,23 @@
   App.fmtDate = iso => iso && iso !== "-" ? iso.split("-").reverse().join("-") : "-";
   App.pct = (a, b) => b ? Math.round(100 * a / b) : 0;
   App.role = id => M.roles.find(r => r.id === id);
-  App.shortLabel = id => ({ DGM: "Dealer GM", DSA: "Dealer Svc Admin", WSA: "Workshop SA" })[id] || id;
+  App.shortLabel = id => ({ DGM: "Dealer GM", DSA: "Dealer Svc Admin", WSA: "Workshop SA", PDA: "P&D Admin", JCC: "Job Controller", QIN: "eQC & Washing" })[id] || id;
   App.action = id => M.actions.find(a => a.id === id);
-  App.perm = (role, action) => M.permissions[role][action];
-  App.can = (action, role = S.role) => !!App.perm(role, action).scope;
+  /* decision rights are a what-if in the app (positions not confirmed): S.permOver["NSM|claim_accept"] = true / false */
+  App.perm = (role, action) => { const b = M.permissions[role][action], o = (S.permOver || {})[role + "|" + action]; if (o === undefined) return b;
+    return o ? { scope: b.scope || App.role(role).level, basis: "assumed" } : { deny: "Decision rights for this position are not confirmed" }; };
+  /* Read-only dealer view: TML opens a dealer's own screens (S.ref). Viewing actions stay available; operating actions are blocked. */
+  const VIEW_ONLY = new Set(["view_kpis", "view_list", "view_reports", "view_tower", "drill_down", "filter_pvev", "filter_search", "view_360", "export"]);
+  App.refScreens = /[?&](refScreens|dealerRoles)=1/.test(location.search); // dealer reference screens are hidden from TML; this switch is for regression tests only
+  App.READONLY = "Read-only: TML views the dealer's screens, it does not operate them";
+  App.can = (action, role = S.role) => !!App.perm(role, action).scope && !(S.ref && role === S.role && !VIEW_ONLY.has(action));
   App.statusMeta = id => M.appointmentStatuses.find(s => s.id === id);
 
   /* ---------- units and scope ---------- */
   const U = D.units;
   App.unit = id => U[id];
-  App.home = (role = S.role) => M.personas[role].unit;
-  App.user = (role = S.role) => M.personas[role].user || null;
+  App.home = (role = S.role) => S.ref && role === S.role ? S.ref.dealer : M.personas[role].unit;
+  App.user = (role = S.role) => S.ref && role === S.role ? S.ref.user : (M.personas[role].user || null);
   App.ancestors = id => { const out = []; let u = U[id]; while (u) { out.unshift(u.id); u = U[u.parent]; } return out; };
   App.dealersUnder = id => { const u = U[id]; if (u.level === "division") return [u.parent]; return u.level === "dealer" ? [id] : u.children.flatMap(App.dealersUnder); };
   App.countLevel = (id, level) => { const u = U[id]; if (u.level === level) return 1; return u.children.reduce((s, c) => s + App.countLevel(c, level), 0); };
@@ -119,15 +125,15 @@
   App.renderRoles = () => {
     App.$("#roles").innerHTML = M.roleSwitcher.map(g => `<div class="role-group" role="group" aria-label="${g.group} roles">
       <span class="role-group-label">${g.group}</span>
-      ${g.roles.map(id => { const r = App.role(id); return `<button class="role-btn" id="role-${id}" data-role="${id}" aria-pressed="${S.role === id}" title="${esc(r.name)}">${id === "DGM" ? "Dealer GM" : id === "DSA" ? "Dealer Service Admin" : id}</button>`; }).join("")}
+      ${g.roles.map(id => { const r = App.role(id); return `<button class="role-btn" id="role-${id}" data-role="${id}" aria-pressed="${(S.ref ? S.tml : S.role) === id}" title="${esc(r.name)}">${id === "DGM" ? "Dealer GM" : id === "DSA" ? "Dealer Service Admin" : id}</button>`; }).join("")}
     </div>`).join("");
   };
 
   /* Screen frame of the Service Transformation app: header (search, bell, user) and the narrow icon rail. */
   App.headerFor = tab => {
     const h = M.sandbox.header, observed = tab.basis === "observed" && tab.screen;
-    if (observed) return { ...h.default, ...(h.screens[tab.screen] || {}), search: tab.screen === 11 && !!App.mod().tabs(S.role).some(t => t.id === "search") };
-    return { ...h.default, sub: App.role(S.role).name, search: false };
+    if (observed) return { ...h.default, ...(h.screens[tab.screen] || {}), search: [11, 15].includes(tab.screen) && !!App.mod().tabs(S.role).some(t => t.id === "search") };
+    return { ...h.default, sub: App.role(S.role).name, search: App.mod().tabs(S.role).some(t => t.id === "tracker") };
   };
   App.renderHeader = tab => {
     const h = App.headerFor(tab);
@@ -141,20 +147,40 @@
     const gears = [1, 2, 3, 4, 5, 6, 7, 8].map((n, i) => `<span class="rail-btn${i === 0 ? " on" : ""}">⚙</span>`).join("");
     const menu = tab.screen === 2 && tab.basis === "observed" ? `<nav class="menu-panel" aria-label="Application menu (as in screen 02)"><span class="mp-back">←</span>${
       ["Dashboard", "Lead Assignment", "Inbound Lead Manageme…", "Marketing Campaign List", "External Lead Upload", "Tele-Caller Dashboard", "Customer 360"].map((x, i) => `<span class="mp-item${i === 0 ? " on" : ""}">${esc(x)}</span>`).join("")}</nav>` : "";
-    return `<div class="appframe"><aside class="rail" aria-hidden="true"><span class="rail-btn">☰</span>${gears}</aside>${menu}<div class="appmain">${html}</div></div>`;
+    const ribbon = S.ref ? `<div class="ref-ribbon" role="status"><span><b>Read-only dealer view.</b> These are the screens of the dealer's <b>${esc(App.role(S.role).name)}</b> at <b>${esc(S.ref.dealer)}</b>, as the dealer sees them. TML does not operate them.</span>
+      <button class="btn small" data-h="exitref">← Back to ${esc(S.tml)} view</button></div>` : "";
+    return `<div class="appframe"><aside class="rail" aria-hidden="true"><span class="rail-btn">☰</span>${gears}</aside>${menu}<div class="appmain">${ribbon}${html}</div></div>`;
   };
   App.mod = () => App.modules[S.module];
   App.renderTabs = () => {
-    const tabs = App.mod().tabs(S.role);
-    App.$("#tabs").innerHTML = `<h2>${esc(App.mod().label)} screens</h2>` + tabs.map(t =>
-      `<button class="tab-btn" id="tab-${t.id}" data-tab="${t.id}" ${S.tab === t.id ? 'aria-current="page"' : ""}>${esc(t.label)}<small>${esc(t.sub || "")}</small></button>`).join("");
+    const tabs = App.mod().tabs(S.role).filter(t => !(S.ref && ["journey", "matrix"].includes(t.view)));
+    let grp = null;
+    App.$("#tabs").innerHTML = `<h2>${tabs.some(t => t.group) ? "TML Journey" : esc(App.mod().label) + " screens"}</h2>` + tabs.map(t => {
+      const head = t.group && t.group !== grp ? `<div class="tab-group">${esc(t.group)}</div>` : ""; grp = t.group || grp;
+      return head + `<button class="tab-btn" id="tab-${t.id}" data-tab="${t.id}" ${S.tab === t.id ? 'aria-current="page"' : ""}>${esc(t.label)}<small>${esc(t.sub || "")}</small></button>`; }).join("");
   };
 
   App.setRole = role => {
+    S.ref = null; S.tml = null; S.tmlState = null;
     S.role = role; S.unit = App.home(role); S.tab = App.mod().tabs(role)[0].id; S.bd = "All"; S.page = 1; S.filters = {}; S.selected.clear();
     App.render(); App.$("#main").focus();
   };
-  App.go = (tab, filters) => { S.tab = tab; S.page = 1; S.selected.clear(); S.filters = filters || {}; App.render(); App.$("#main").focus(); };
+  App.enterRef = (dealerRole, tab, dealer, filters) => {
+    if (!S.ref) { S.tml = S.role; S.tmlState = { unit: S.unit, tab: S.tab, bd: S.bd, filters: S.filters }; }
+    const cre = D.staff.find(x => x.dealer === dealer && x.role === "CRE");
+    S.ref = { role: dealerRole, dealer, user: cre ? cre.id : null };
+    S.role = dealerRole; S.unit = dealer; S.tab = tab; S.page = 1; S.filters = filters || {}; S.selected.clear();
+    App.render(); App.$("#main").focus();
+  };
+  App.exitRef = () => {
+    if (!S.ref) return;
+    const st = S.tmlState; S.role = S.tml; S.ref = null; S.tml = null; S.tmlState = null;
+    S.unit = st.unit; S.tab = "dealerscreens"; S.bd = st.bd; S.filters = st.filters || {}; S.page = 1; S.selected.clear();
+    App.render(); App.$("#main").focus();
+  };
+  /* search text and fields are compared without spaces, dashes or case, so "MH 43 EB 4826" finds MH43EB4826 */
+  App.norm = x => String(x == null ? "" : x).toLowerCase().replace(/[^a-z0-9]/g, "");
+  App.go = (tab, filters) => { S.tab = tab; S.page = 1; S.selected.clear(); S.filters = filters || {}; App.render(); App.$("#main").scrollTop = 0; App.$("#main").focus({ preventScroll: true }); };
   App.drill = unitId => { S.unit = unitId; S.page = 1; App.render(); };
 
   App.render = () => {
@@ -189,19 +215,39 @@
     </section>`;
   };
 
+  /* Actions panel: a TML position sees the actions it holds, and the appointment-only ones (targets, exceptions, reassignment) only on the appointment screens;
+     the appointment-only actions it does not hold show disabled with the reason; the dealer-side actions it does not hold are not listed here (they are in the permission matrix). Dealer reference screens and test roles list every action. */
+  const APPT_TABS = new Set(["overview", "list", "conv", "prodtml", "calling", "exceptions"]);
+  App.panelActions = (role = S.role, tab = S.tab) => App.role(role).appUser && !S.ref ? M.actions.filter(a => a.area === "appointment" ? APPT_TABS.has(tab) : a.area === "claims" ? tab === "claims" : a.area === "thd" ? tab === "thd" : !!App.perm(role, a.id).scope) : M.actions;
   App.actionsPanel = () => {
-    const cells = M.actions.map(a => {
+    const cells = App.panelActions().map(a => {
       const p = App.perm(S.role, a.id);
+      if (p.scope && !App.can(a.id)) return `<button class="act" aria-disabled="true" data-deny="${esc(App.READONLY)}" title="${esc(App.READONLY)}"><b>${esc(a.label)}</b><small class="why">${esc(App.READONLY)}</small></button>`;
       if (p.scope) return `<button class="act" data-act="${a.id}"><b>${esc(a.label)}</b><small>Scope: ${esc(M._meta.scopeValues[p.scope])}${p.basis === "assumed" ? ' · <span class="basis">ASSUMED</span>' : ""}</small></button>`;
       return `<button class="act" aria-disabled="true" data-deny="${esc(p.deny)}" title="${esc(p.deny)}"><b>${esc(a.label)}</b><small class="why">Not available: ${esc(p.deny)}</small></button>`;
     }).join("");
-    return `<section class="card" style="margin-top:16px"><div class="card-h">Actions for ${esc(App.role(S.role).name)}</div><div class="card-b"><div class="actions-grid">${cells}</div>
+    return `<section class="card" style="margin-top:16px"><div class="card-h">${S.ref ? "Actions (read-only dealer view)" : "Actions for " + esc(App.role(S.role).name)}</div><div class="card-b"><div class="actions-grid">${cells}</div>
       <p class="note">Disabled actions show why. Permissions come from data/model.json (same matrix as the Word document).</p></div></section>`;
   };
 
   /* ---------- journey (model driven) ---------- */
   App.views = {};
+  /* TML positions: the vehicle's path through all the modules, with the live numbers and the actions TML has at each step */
+  App.tmlJourney = tab => {
+    const J = M.tmlJourney, all = App.kpi.all(S.unit), tile = id => M.modules.items.find(x => x.id === id);
+    const steps = J.steps.map((st, i) => { const t = tile(st.tile), k = t.kpis[0], a = t.attention, mine = st.actions.filter(x => App.can(x)), tn = a ? App.kpi.defs[a.id](all) : null;
+      return `<article class="step on" aria-label="Step ${i + 1}: ${esc(st.label)}"><span class="n">${i + 1}</span><h3>${esc(st.label)}</h3>
+        ${k ? `<p style="margin:2px 0"><b style="font-size:22px">${App.kpi.fmt(k, App.kpi.defs[k.id](all))}</b> <span class="note">${esc(k.label)}</span></p>` : ""}
+        ${a ? `<p style="margin:2px 0"><span class="chip ${tn ? "red" : "green"}">${tn} needs attention</span> <span class="note">${esc(a.label)}</span></p>` : ""}
+        <p class="note">Dealer side: ${esc(st.dealer)}</p><p class="note">TML screens: ${st.screens.join(", ")}</p>
+        <div class="you">What you do here:</div><ul>${mine.map(x => `<li>${esc(App.action(x).label)}</li>`).join("") || "<li>View only</li>"}</ul>
+        <p><button class="btn small primary" data-h="jgo" data-tab="${st.tab}">Open this screen</button></p></article>`; }).join("");
+    return App.pageHead("TML journey · every vehicle, every module", { basis: "proposed" }) + App.scopeBanner({ bd: false, crumbs: false }) +
+      `<p class="note" style="margin-top:-6px">${esc(J.basis)}. Numbers are for your scope and roll up from dealer to national. Each step opens the TML screen of that module; the follow-ups, comments and decisions you raise on a vehicle are on Actions &amp; Follow-ups (P28).</p><div class="journey">${steps}</div>
+      ${M.escalation.rules[S.role] ? `<p class="callout" style="margin-top:14px"><b>Escalation:</b> ${esc(M.escalation.rules[S.role])}.</p>` : ""}` + App.actionsPanel();
+  };
   App.views.journey = tab => {
+    if (App.role(S.role).appUser && !S.ref && M.tmlJourney) return App.tmlJourney(tab);
     const steps = M.journey.steps.map((s, i) => {
       const mine = s.actions.filter(a => App.can(a));
       const on = mine.length > 0;
@@ -210,7 +256,7 @@
         ${s.statuses.length ? `<p>Statuses: ${s.statuses.map(x => esc(x)).join(", ")}</p>` : ""}
         <p class="note">Screens: ${s.screens.length ? s.screens.map(x => typeof x === "number" ? String(x).padStart(2, "0") : x).join(", ") : "none in the input"}</p>
         <p class="note">Who acts: ${esc(M.roles.filter(r => s.actions.some(a => M.permissions[r.id][a].scope)).map(r => App.shortLabel(r.id)).join(", ") || "–")}</p>
-        <div class="you">${on ? "What you do here:" : "Not your step"}</div>
+        <div class="you">${on ? "What you do here:" : "Dealership step (not a TML action)"}</div>
         ${on ? `<ul>${mine.map(a => `<li>${esc(App.action(a).label)} <span class="note">(${esc(App.perm(S.role, a).scope)})</span></li>`).join("")}</ul>` : ""}
       </article>`;
     }).join("");
@@ -255,19 +301,27 @@
 
   /* ---------- permission matrix (model driven) ---------- */
   App.views.matrix = tab => {
-    const roles = M.roles.map(r => r.id);
-    const head = roles.map(id => `<th scope="col" class="${id === S.role ? "cur" : ""}" title="${esc(App.role(id).name)}">${App.shortLabel(id)}${App.role(id).inSwitcher === false ? "†" : ""}</th>`).join("");
+    const roles = M.roles.filter(r => r.appUser).map(r => r.id), dealer = M.roles.filter(r => !r.appUser);
+    const head = roles.map(id => `<th scope="col" class="${id === S.role ? "cur" : ""}" title="${esc(App.role(id).name)}">${App.shortLabel(id)}</th>`).join("");
     const rows = M.actions.map(a => `<tr><th scope="row" style="background:none;font-weight:600">${esc(a.label)}${a.basis === "assumed" ? ' <span class="basis">ASSUMED</span>' : ""}</th>${roles.map(id => {
       const p = App.perm(id, a.id), cur = id === S.role ? " cur" : "";
       return p.scope ? `<td class="yes${cur}">✓ ${esc(p.scope)}${p.basis === "assumed" ? "*" : ""}</td>` : `<td class="no${cur}" title="${esc(p.deny)}">–<small>${esc(p.deny)}</small></td>`;
     }).join("")}</tr>`).join("");
+    const ctx = M.actions.filter(a => !roles.some(id => App.perm(id, a.id).scope) && dealer.some(r => App.perm(r.id, a.id).scope)).map(a =>
+      `<tr><th scope="row" style="background:none;font-weight:600">${esc(a.label)}</th><td>${dealer.filter(r => App.perm(r.id, a.id).scope).map(r => esc(r.name)).join(", ")}</td></tr>`).join("");
     return App.pageHead("Permission matrix", { basis: "" }) +
-      `<p class="note">Roles as columns, actions as rows. ✓ shows the data scope; * marks an assumed permission; – shows the reason it is not available. Same matrix as <code>data/model.json</code> and the Word document. Your role's column is highlighted. † Workshop Service Advisor is not in the role switcher (no screen in the input).</p>
-      <div class="table-wrap matrix"><table><caption class="sr-only">Role by action permission matrix</caption><thead><tr><th scope="col">Action</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+      `<p class="note">TML positions as columns, actions as rows. ✓ shows the data scope; * marks an assumed permission; – shows the reason it is not available. Same matrix as <code>data/model.json</code> and the Word document. Your role's column is highlighted.</p>
+      <div class="table-wrap matrix"><table><caption class="sr-only">TML position by action permission matrix</caption><thead><tr><th scope="col">Action</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+      <section class="card" style="margin-top:16px"><div class="card-h">WHO PERFORMS THE OPERATIONAL ACTIONS AT THE DEALERSHIP</div><div class="card-b" style="padding:0"><div class="table-wrap"><table><caption class="sr-only">Dealer-side roles for the actions TML does not perform</caption>
+        <thead><tr><th scope="col">Action (not performed by TML)</th><th scope="col">Dealer-side position(s)</th></tr></thead><tbody>${ctx}</tbody></table></div></div></section>
+      <p class="note">Dealer positions are not users of this app: they perform these steps in the dealership's own screens, which are not part of this app. TML sees the resulting records on its own screens.</p>`;
   };
 
   /* ---------- events (delegated) ---------- */
   App.handlers = {};
+  App.OPERATING = new Set(["bulkAppt", "bulkLeads", "bulkProd", "call", "callprod", "slot", "saveCentral", "exc", "pdassign", "pdsave", "pdcancel"]);
+  // test switch: add ?dealerRoles=1 to the address to also list the dealer-side roles in the switcher (regression tests only)
+  if (/[?&]dealerRoles=1/.test(location.search)) M.roleSwitcher.push({ group: "Dealer (test only)", roles: ["DGM", "CRM", "CRE", "DSA", "PDA", "WSA", "JCC", "QIN", "THD", "SPD"] });
   App.start = () => {
     S.unit = App.home(S.role); S.tab = App.mod().tabs(S.role)[0].id;
     document.addEventListener("click", e => {
@@ -278,7 +332,10 @@
       if (t.dataset.unit) return App.drill(t.dataset.unit);
       if (t.dataset.bd) { S.bd = t.dataset.bd; S.page = 1; return App.render(); }
       if (t.dataset.act) { if (t.getAttribute("aria-disabled") === "true") return App.toast(t.dataset.deny); return App.mod().doAction(t.dataset.act, t); }
-      if (t.dataset.h) { const fn = App.handlers[t.dataset.h]; if (fn) fn(t, e); }
+      if (t.dataset.h) {
+        if (S.ref && App.OPERATING.has(t.dataset.h)) return App.toast(App.READONLY);
+        const fn = App.handlers[t.dataset.h]; if (fn) fn(t, e);
+      }
     });
     document.addEventListener("change", e => { const t = e.target.closest("[data-hc]"); if (t && App.handlers[t.dataset.hc]) App.handlers[t.dataset.hc](t, e); });
     document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("[data-enter]")) { const fn = App.handlers[e.target.dataset.enter]; fn && fn(e.target, e); } });

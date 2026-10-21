@@ -12,8 +12,13 @@
     <button class="icon-btn" data-h="iconbtn" data-k="Column settings" title="Column settings" aria-label="Column settings">⚙</button>
     <button class="icon-btn" data-h="iconbtn" data-k="List options" title="List options" aria-label="List options">☰</button></span>`;
   H.iconbtn = t => App.toast(`${t.dataset.k}: shown on the screen, not part of this demo`);
-  const leadTabs = (active, labels) => `<div class="lead-tabs" role="list">${labels.map(t => t === active ? `<span role="listitem" class="lead-tab active" aria-current="true">${t}</span>`
-    : `<button role="listitem" class="lead-tab" disabled title="Other lead type: outside the Appointment scope">${t}</button>`).join("")}</div>`;
+  /* Lead-type pills at the top of the lead screens (as on the screenshots). Lead types shown as links open the screens of this demo. */
+  App.ui.leadTabs = active => {
+    const cre = S.role === "CRE", labels = cre ? M.productLeads.leadTabsCRE : M.productLeads.leadTabsCRM;
+    const nav = cre ? { "Appointment List": "calling", "Product Leads": "callprod" } : { "Service Due Leads": "due", "Appointment List": "appt", "Product Leads": "prod" };
+    return `<div class="lead-tabs" role="list">${labels.map(t => t === active ? `<span role="listitem" class="lead-tab active" aria-current="true">${t}</span>`
+      : nav[t] ? `<button role="listitem" class="lead-tab" data-tab="${nav[t]}">${t}</button>` : `<button role="listitem" class="lead-tab" disabled title="Other lead type: not part of this demo">${t}</button>`).join("")}</div>`;
+  };
   const vehicleToggle = () => App.bdToggle("Vehicle (All / PV / EV)");
   const dist = (total, weights) => { // split a total over weights so the parts add up exactly
     const sum = weights.reduce((a, b) => a + b, 0) || 1, raw = weights.map(w => total * w / sum), fl = raw.map(Math.floor);
@@ -68,7 +73,7 @@
       { h: "Days Left ⇅", f: r => `${daysBetween(today, r.dueDate)} Days` }, { h: "Vehicle Type", f: r => r.bd }, { h: "Call Attempt", f: r => r.callStatus === "Attempted" ? "1" : "-" }];
     const bands = [["", "All"], ["7-9", "7-9 Days"], ["15-30", "15-30 Days"]];
     return `<div class="title-row"><h1 style="font-size:20px;margin:0">Service Due Leads</h1><span class="badge observed">Observed · screen 02</span></div>` + App.scopeBanner({ bdLabel: "Vehicle (All / PV / EV)" }) +
-      leadTabs("Service Due Leads", ["Service Due Leads", "Appt. List", "PSF Leads", "Product Leads", "Updation Campaign", "Lost Customer"]) +
+      App.ui.leadTabs("Service Due Leads")+
       `<p class="note">Source of appointments: a service-due lead becomes an appointment when the CRE's call outcome is "Appt. Booked". Leads already booked are not listed.</p>
       <div class="filters" role="search">${sel("f-stype", "Service Type", ["Paid Service", "Free Service"], f.stype)}${inp("f-from", "From Date", f.from, "date")}${inp("f-to", "To Date", f.to, "date")}
         ${sel("f-ppl", "PPL", [...new Set(D.leads.map(l => l.ppl))], f.ppl)}<span class="grow"></span>${filterBtns()}${App.ui.iconBtns()}</div>
@@ -121,11 +126,11 @@
   /* ---------- OBSERVED 04: Customer Search / View 360 ---------- */
   const chassis = reg => "MAT" + reg.replace(/\D/g, "").padEnd(4, "0") + "GALK" + reg.replace(/\D/g, "").slice(-4).padStart(6, "1");
   const searchCustomers = (by, q) => {
-    q = (q || "").trim().toLowerCase(); if (!q) return [];
+    q = (q || "").trim().toLowerCase(); if (!q) return []; const nq = App.norm(q);
     const key = by === "reg" ? "reg" : by === "name" ? "customer" : "mobile";
-    const sample = SB.customerSearch.rows.filter(r => r[key].toLowerCase().includes(q)).map(r => ({ ...r, sample: true }));
-    const appts = D.appointments.filter(a => App.inScope(a) && a[key === "customer" ? "customer" : key].toLowerCase().includes(q)).map(a => ({ customer: a.customer, mobile: a.mobile, reg: a.reg, chassis: chassis(a.reg), type: "Appointment", id: a.id }));
-    const leads = D.leads.filter(l => App.inScope(l) && !l.apptId && l[key].toLowerCase().includes(q)).map(l => ({ customer: l.customer, mobile: l.mobile, reg: l.reg, chassis: chassis(l.reg), type: "Outbound", id: l.id }));
+    const sample = SB.customerSearch.rows.filter(r => App.norm(r[key]).includes(nq)).map(r => ({ ...r, sample: true }));
+    const appts = D.appointments.filter(a => App.inScope(a) && App.norm(a[key === "customer" ? "customer" : key]).includes(nq)).map(a => ({ customer: a.customer, mobile: a.mobile, reg: a.reg, chassis: chassis(a.reg), type: "Appointment", id: a.id }));
+    const leads = D.leads.filter(l => App.inScope(l) && !l.apptId && App.norm(l[key]).includes(nq)).map(l => ({ customer: l.customer, mobile: l.mobile, reg: l.reg, chassis: chassis(l.reg), type: "Outbound", id: l.id }));
     return [...sample, ...appts, ...leads].slice(0, 30);
   };
   views.custSearch = tab => {
@@ -149,6 +154,7 @@
       <h3 style="margin:8px 0 0;font-size:14px">Service due leads</h3>${leads.map(l => `<div>${l.id} · due ${App.fmtDate(l.dueDate)} · ${esc(l.assignedTo || "Unassigned")} · ${esc(l.outcome || l.callStatus)}</div>`).join("") || '<div class="note">None</div>'}`);
   };
   H.gsearch = t => { const q = (document.getElementById("gsearch") || {}).value || ""; if (!q.trim()) return App.toast("Type a vehicle no., VIN, mobile no. or customer name");
+    if (App.mod().tabs(S.role).some(x => x.id === "tracker")) return App.go("tracker", { q: q.trim() });   // TML: find the vehicle in the service cycle
     const by = /^\d{10}$/.test(q.trim()) ? "mobile" : /^[A-Za-z]{2}\d/.test(q.trim()) ? "reg" : "name"; App.go("search", { by, cq: q.trim() }); };
 
   /* ---------- OBSERVED 17: Workshop Configuration (Smart Slot) ---------- */
@@ -174,16 +180,18 @@
       [{ label: "Cancel" }, { label: "Save", primary: true, onClick: r => { w.slotsPerDay = +r.querySelector("#m-slots").value; w.active = r.querySelector("#m-act").value === "1"; App.render(); App.toast(`Smart Slot saved for ${w.id}`); } }]);
   };
 
+  const phoneTable = () => table([{ h: "☑", f: () => '<input type="checkbox" checked aria-label="Select all">' }, { h: "Phone Type", f: r => r.type }, { h: "Phone No", f: r => r.no },
+    { h: "Verification Status", f: r => r.verified ? '<span style="color:var(--green)">✔ Verified</span>' : '<span style="color:var(--red)">⚠ <u>Verify</u></span>' }, { h: "Status", f: r => r.status }], SB.employeeSecurityGuard.phones, "Phone numbers");
   /* ---------- OBSERVED 18 / 19: Employee Info ---------- */
   views.employee = tab => {
-    const E = SB.employee, dealer = dealerOf(), role = S.filters.emp === "CRE" ? "CRE" : "CRM", can = App.can("config_central_calling");
+    const E = SB.employee, dealer = dealerOf(), sg = S.filters.emp === "SG", role = sg ? SB.employeeSecurityGuard.role : S.filters.emp === "CRE" ? "CRE" : "CRM", can = App.can("config_central_calling");
     const central = D.settings[dealer]?.centralCalling ?? true;
-    const t2 = { ...tab, screen: role === "CRE" ? 19 : 18 };
+    const t2 = { ...tab, screen: sg ? 32 : role === "CRE" ? 19 : 18 }, act = sg ? 0 : E.tabs.length - 1;
     const row = (l, v, o = {}) => `<div class="erow"><span>${o.req ? '<b style="color:var(--red)">* </b>' : ""}${l}</span>${o.select ? `<select disabled aria-label="${l}"><option>${esc(v)}</option></select>` : `<input value="${esc(v)}" readonly aria-label="${l}">`}</div>`;
     const dummy = n => App.toast(`${n}: shown on the screen, not part of this demo`);
     return `<div class="title-row"><h1 style="font-size:20px;margin:0">👤 Employee Info</h1><span class="badge observed">Observed · screen ${t2.screen}</span><span class="grow"></span>
         <button class="btn" data-h="dummy" data-k="Employee Info download">⬇ Employee Info</button><button class="btn primary" data-h="dummy" data-k="Save">Save</button></div>` + App.scopeBanner({ crumbs: false, bd: false }) +
-      `<div class="filters"><label for="f-emp">Show screen<select id="f-emp" data-hc="filter" data-f="emp"><option value="CRM" ${role === "CRM" ? "selected" : ""}>18 · Employee Role = CRM</option><option value="CRE" ${role === "CRE" ? "selected" : ""}>19 · Employee Role = CRE</option></select></label></div>
+      `<div class="filters"><label for="f-emp">Show screen<select id="f-emp" data-hc="filter" data-f="emp"><option value="CRM" ${role === "CRM" ? "selected" : ""}>18 · Employee Role = CRM</option><option value="CRE" ${role === "CRE" ? "selected" : ""}>19 · Employee Role = CRE</option><option value="SG" ${sg ? "selected" : ""}>32 · Employee Role = Security Guard</option></select></label></div>
       <section class="card"><div class="card-b"><div class="emp-grid">
         <div><div class="emp-pic">Profile Picture</div><p style="display:flex;gap:8px;margin:10px 0 0"><button class="btn primary small" data-h="dummy" data-k="Upload">⬆ Upload</button><button class="btn small" data-h="dummy" data-k="Clear">Clear</button></p></div>
         <div class="emp-col">${row("Dealer", E.dealer, { req: 1 })}${row("Division Name", E.divisionName, { req: 1 })}${row("Employee Name", E.employeeName, { req: 1 })}${row("Employee No", E.employeeNo, { req: 1 })}
@@ -192,13 +200,138 @@
           ${row("Aadhar No", E.aadhar, { req: 1 })}${row("Pan No", E.pan)}${row("Driving License", E.drivingLicense, { req: 1 })}</div>
         <div class="emp-col">${row("Work Experience / Passout", E.experience)}${row("Today's Attendance", E.attendance)}${row("Remarks", E.remarks)}${row("Status", E.status, { select: 1 })}${row("Authentication", E.authentication, { select: 1 })}${row("Date of Leaving", E.dol)}</div>
       </div></div></section>
-      <div class="tab-strip" role="tablist">${E.tabs.map((x, i) => `<button role="tab" aria-selected="${i === E.tabs.length - 1}" ${i === E.tabs.length - 1 ? 'aria-current="true"' : ""} data-h="dummy" data-k="${esc(x)} tab">${esc(x)}</button>`).join("")}</div>
+      <div class="tab-strip" role="tablist">${E.tabs.map((x, i) => `<button role="tab" aria-selected="${i === act}" ${i === act ? 'aria-current="true"' : ""} data-h="dummy" data-k="${esc(x)} tab">${esc(x)}</button>`).join("")}</div>
       <p style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin:0 0 10px"><button class="btn" data-h="dummy" data-k="Edit">✎ Edit</button><button class="btn" data-h="dummy" data-k="Add">⊕ Add</button><button class="btn" data-h="dummy" data-k="Delete">🗑 Delete</button>
-        <button class="btn primary" data-h="saveCentral" ${can ? "" : "disabled"}>Save</button><button class="btn" data-h="dummy" data-k="Refresh">⟳ Refresh</button></p>
-      ${table([{ h: "☑", f: () => '<input type="checkbox" checked aria-label="Select all">' }, { h: "Feature", f: () => "Central Calling at dealer Level" },
+        <button class="btn primary" data-h="${sg ? "dummy" : "saveCentral"}" data-k="Save" ${can || sg ? "" : "disabled"}>Save</button><button class="btn" data-h="dummy" data-k="Refresh">⟳ Refresh</button></p>
+      ${sg ? phoneTable() : table([{ h: "☑", f: () => '<input type="checkbox" checked aria-label="Select all">' }, { h: "Feature", f: () => "Central Calling at dealer Level" },
         { h: "Action", f: () => `<fieldset style="border:0;padding:0;margin:0"><legend class="sr-only">Central Calling at dealer Level</legend><label><input type="radio" name="cc" value="1" ${central ? "checked" : ""} ${can ? "" : "disabled"}> Yes</label> <label><input type="radio" name="cc" value="0" ${central ? "" : "checked"} ${can ? "" : "disabled"}> No</label></fieldset>` },
         { h: "Dealer Code", f: () => E.featureDealerCode }, { h: "Status", f: () => "Active" }], [{}], "Additional feature parameters")}` + App.actionsPanel();
   };
   H.dummy = t => App.toast(`${t.dataset.k}: shown on the screen, not part of this demo`);
   H.saveCentral = () => { const v = document.querySelector('input[name="cc"]:checked').value === "1"; const d = dealerOf(); D.settings[d] = { centralCalling: v }; App.toast(`Central Calling at dealer Level set to ${v ? "Yes" : "No"} for ${d}`); };
+
+  /* ---------- Product Leads: Lead Assignment (CRM, screen 10) and Calling List (CRE, screen 15) ---------- */
+  const PSTAT = { unassigned: "red", not_contacted: "red", attempted: "amber", interested: "green", not_interested: "grey" };
+  const PLABEL = Object.fromEntries(M.productLeads.statuses.map(x => [x.id, x.label]));
+  const flag = (on, label, red) => `<span class="flag ${on ? "yes" : red ? "no" : "off"}" role="img" aria-label="${label}: ${on ? "yes" : "no"}">${on ? "✔" : red ? "✖" : "○"}</span>`;
+  const prodScope = () => D.productLeads.filter(r => App.inScope(r) && App.bdOk(r));
+  const prodCols = (extra) => [
+    ...extra.lead, { h: "Mobile No.", f: r => r.mobile }, ...(extra.sev ? [{ h: "Customer Severity", f: r => r.severity }] : []), { h: "Reg No.", f: r => r.reg },
+    { h: "PPL", f: r => esc(r.ppl) }, { h: "PL", f: r => esc(r.pl) }, { h: "Opportunity<br>Count", f: r => pad2(r.opps) },
+    ...(extra.type ? [{ h: "Opportunity<br>Type", f: r => M.productLeads.flags.filter(x => r[x.id]).map(x => x.label).join(", ") }] : []),
+    ...M.productLeads.flags.map(x => ({ h: `<abbr title="${esc(x.full)}">${x.label}</abbr>`, f: r => flag(r[x.id], x.label, extra.red) })),
+    ...(extra.dealer ? [{ h: "Dealer", f: r => esc(r.division) }] : []), { h: "Assigned To", f: r => esc(r.assignedTo || "-") },
+    { h: "Status", f: r => App.chip(PLABEL[r.status], PSTAT[r.status]) }];
+  const titleRow = (title, tab) => `<div class="title-row"><button class="icon-btn" data-h="back" aria-label="Back">←</button><h1 style="font-size:20px;margin:0">${title}</h1><span class="badge observed">Observed · screen ${tab.screen}</span></div>`;
+  const workshops = () => U[dealerOf()].children;
+
+  views.crmProd = tab => {
+    const f = S.filters, base = prodScope(), kpi = f.kpi || "unassigned", canAssign = App.can("assign");
+    const nU = base.filter(r => !r.assignedTo).length, nA = base.length - nU;
+    const rows = base.filter(r => (kpi === "assigned" ? r.assignedTo : !r.assignedTo) && (!f.workshop || r.division === f.workshop) && (!f.ppl || r.ppl === f.ppl));
+    const pr = pageRows(rows), allSel = pr.length && pr.every(r => S.selected.has(r.id));
+    const cols = prodCols({ lead: [{ h: `<input type="checkbox" aria-label="Select all on page" data-h="selall" ${allSel ? "checked" : ""} ${canAssign ? "" : "disabled"}>`, f: r => `<input type="checkbox" aria-label="Select ${esc(r.customer)}" data-h="sel" data-id="${r.id}" ${S.selected.has(r.id) ? "checked" : ""} ${canAssign ? "" : "disabled"}>` },
+      { h: "Customer Name", f: r => esc(r.customer) }], sev: true });
+    const k = (id, n, label, color) => `<button class="kpi-tab" id="kpi-${id}" data-h="kpi" data-k="${id}" aria-pressed="${kpi === id}"><b style="color:${color}">${n}</b>${label}</button>`;
+    return titleRow("Lead Assignment : Product Leads", tab) + App.scopeBanner({ bdLabel: "Vehicle (All / PV / EV)" }) + App.ui.leadTabs("Product Leads") +
+      `<div class="kpi-tabs">${k("unassigned", nU, "Unassigned", "var(--red)")}${k("assigned", nA, "Assigned", "var(--green)")}</div>
+      <div class="filters" role="search">${sel("f-workshop", "Workshop", workshops(), f.workshop)}${sel("f-ppl", "PPL", [...new Set(D.productLeads.map(l => l.ppl))], f.ppl)}<span class="grow"></span>
+        <button class="btn primary" data-h="search">Search 🔍</button><button class="btn" data-h="clear">Clear</button>
+        <button class="btn" data-h="bulkProd" ${canAssign && S.selected.size ? "" : 'aria-disabled="true"'} title="${canAssign ? "Select leads first" : "Done by dealer CRM"}">Assign Leads</button>${App.ui.iconBtns()}</div>
+      <div class="list-meta">${showing(rows.length, S.selected.size ? ` · ${S.selected.size} selected` : "")}<span class="right"><button class="btn primary" data-h="bulkProd" ${canAssign ? "" : "disabled"}>Bulk Assign</button></span></div>
+      ${table(cols, pr, "Product leads")}${pager(rows.length)}
+      <p class="note">${M.productLeads.flags.map(x => `<b>${x.label}</b> = ${esc(x.full)}`).join(" · ")}. A filled circle means the customer's vehicle has that opportunity; Opportunity Count is how many.</p>` + App.actionsPanel();
+  };
+  const assignProd = ids => {
+    if (!ids.length) return App.toast("Select one or more rows first");
+    const cres = dealerStaff(dealerOf(), "CRE");
+    App.modal(`Assign ${ids.length} product lead${ids.length > 1 ? "s" : ""}`, `<label class="field" for="m-cre">Assign to CRE<select id="m-cre">${cres.map(c => `<option>${esc(c.id)}</option>`).join("")}</select></label>`,
+      [{ label: "Cancel" }, { label: "Assign", primary: true, onClick: r => { const to = r.querySelector("#m-cre").value;
+        ids.forEach(id => { const l = D.productLeads.find(x => x.id === id); l.assignedTo = to; l.assignedAt = today + " 10:00"; l.status = "not_contacted"; });
+        S.selected.clear(); App.render(); App.toast(`${ids.length} product lead${ids.length > 1 ? "s" : ""} assigned to ${to}`); } }]);
+  };
+  H.bulkProd = t => { if (t && t.getAttribute && t.getAttribute("aria-disabled") === "true") return App.toast(App.can("assign") ? "Select leads first" : "Done by dealer CRM"); assignProd([...S.selected]); };
+
+  views.creProd = tab => {
+    const user = App.user(), f = S.filters, kpi = f.kpi || "all", mine = prodScope().filter(r => r.assignedTo === user);
+    const q = (f.variant || "").toLowerCase();
+    const rows = mine.filter(r => (kpi === "all" || r.status === kpi) && (!f.workshop || r.division === f.workshop) && (!q || (r.ppl + " " + r.pl).toLowerCase().includes(q)));
+    const cols = prodCols({ lead: [{ h: "Customer Name", f: r => `<button class="row-btn plain" data-h="callprod" data-id="${r.id}" aria-label="Call ${esc(r.customer)}">${esc(r.customer)}</button>` }], type: true, red: true, dealer: true });
+    const k = (id, n, label, color) => `<button class="kpi-tab" id="kpi-${id}" data-h="kpi" data-k="${id}" aria-pressed="${kpi === id}"><b style="color:${color}">${n}</b>${label}</button>`;
+    const n = st => mine.filter(r => r.status === st).length;
+    return titleRow("Calling List : Non Service Leads", tab) + App.scopeBanner({ crumbs: false, bdLabel: "Vehicle (All / PV / EV)" }) + App.ui.leadTabs("Product Leads") +
+      `<div class="kpi-tabs">${k("all", mine.length, "Total Assigned", "var(--blue)")}${k("not_contacted", n("not_contacted"), "Not Contacted", "var(--red)")}${k("attempted", n("attempted"), "Attempted", "var(--amber-t)")}
+        ${k("interested", n("interested"), "Interested", "var(--green)")}${k("not_interested", n("not_interested"), "Not Interested", "var(--grey)")}</div>
+      <div class="filters" role="search">${sel("f-workshop", "Dealer", workshops(), f.workshop)}${inp("f-variant", "Variant", f.variant)}<span class="grow"></span>${filterBtns()}${App.ui.iconBtns()}</div>
+      <div class="list-meta">${showing(rows.length)} · select a customer name to call</div>
+      ${table(cols, pageRows(rows), "My product leads calling list")}${pager(rows.length)}` + App.actionsPanel();
+  };
+  H.callprod = t => {
+    const l = D.productLeads.find(x => x.id === t.dataset.id), can = App.can("call_log");
+    App.modal(`Call ${l.customer}`, `<div>${l.mobile} · ${esc(l.ppl)} ${esc(l.pl)} · ${App.chip(PLABEL[l.status], PSTAT[l.status])}</div>
+      <p class="note">Opportunities: ${M.productLeads.flags.filter(x => l[x.id]).map(x => x.label).join(", ")} (${l.opps})</p>
+      ${can ? `<label class="field" for="m-po">Outcome<select id="m-po"><option value="interested">Interested</option><option value="not_interested">Not Interested</option><option value="attempted">Attempted (no answer)</option></select></label>` : '<p class="note">Calling is done by the CRE.</p>'}`,
+      can ? [{ label: "Cancel" }, { label: "Save outcome", primary: true, onClick: r => { l.status = r.querySelector("#m-po").value; App.render(); App.toast(`${l.customer}: ${PLABEL[l.status]}`); } }] : undefined);
+  };
+
+  /* ---------- P8: Dealer's Screens (read-only): a TML position opens the dealer-side screens for a dealer in scope ---------- */
+  H.exitref = () => App.exitRef();
+  const refDealer = () => { const list = App.dealersUnder(App.home()), cur = S.filters.dealer || (["dealer", "division"].includes(U[S.unit].level) ? (U[S.unit].level === "dealer" ? S.unit : U[S.unit].parent) : null);
+    return list.includes(cur) ? cur : list[0]; };
+  H.refdealer = t => { S.filters.dealer = t.value; App.render(); };
+  H.openref = t => { const sc = M.screens.observed.find(x => String(x.id) === t.dataset.id); App.enterRef(sc.role, sc.tab, refDealer(), sc.filters); };
+  views.dealerscreens = tab => {
+    const list = App.dealersUnder(App.home()), dealer = refDealer(), groups = ["CRM", "CRE", "PDA", "WSA", "JCC", "QIN", "DSA", "THD", "SPD"];
+    const screens = M.screens.observed.filter(x => x.tab && x.launcher !== false);
+    return App.pageHead("DEALER'S SCREENS (READ-ONLY)", tab) + App.scopeBanner({ bd: false, crumbs: false }) +
+      `<p class="note" style="margin-top:-6px">TML positions do not operate the dealership's screens. To see what sits behind a number, open the dealer's own screens here: they are recreated from the screenshots and open <b>read-only</b> for the dealer you choose.</p>
+      <div class="filters"><label for="f-dealer">Dealer<select id="f-dealer" data-hc="refdealer">${list.map(d => `<option value="${d}" ${d === dealer ? "selected" : ""}>${esc(U[d].name)} · ${esc(U[U[d].parent].name)}</option>`).join("")}</select></label>
+        <span class="note">${list.length} dealer${list.length === 1 ? "" : "s"} in your scope</span></div>
+      ${groups.map(g => `<h2 style="font-size:14px;margin:16px 0 8px">${esc(App.role(g).name)} <span class="note">(${g === "THD" ? "Technical Helpdesk team, not an app user" : "dealer position, not a TML user"})</span></h2>
+        <div class="tiles">${screens.filter(x => x.role === g).map(x => `<button class="tile" data-h="openref" data-id="${x.id}"><span class="tile-top"><span class="tile-name">${esc(x.title)}<small>Screen ${String(x.id).padStart(2, "0")} · opens read-only</small></span></span><span class="chip blue">Observed</span></button>`).join("")}</div>`).join("")}` + App.actionsPanel();
+  };
+
+  /* ---------- P9: Product Leads, TML view (EW, AMC, RSA, TMI opportunities by unit, lead list, link to the dealer's screen) ---------- */
+  const plAgg = rows => ({ total: rows.length, unassigned: rows.filter(r => !r.assignedTo).length, not_contacted: rows.filter(r => r.status === "not_contacted").length,
+    attempted: rows.filter(r => r.status === "attempted").length, interested: rows.filter(r => r.status === "interested").length, not_interested: rows.filter(r => r.status === "not_interested").length,
+    ew: rows.filter(r => r.ew).length, amc: rows.filter(r => r.amc).length, rsa: rows.filter(r => r.rsa).length, tmi: rows.filter(r => r.tmi).length });
+  const plRows = unit => D.productLeads.filter(r => App.inScope(r, unit) && App.bdOk(r));
+  H.openprod = () => App.enterRef("CRM", "prod", refDealer());
+  views.prodtml = tab => {
+    const f = S.filters, u = U[S.unit], rowsAll = plRows(S.unit), a = plAgg(rowsAll), q = App.norm(f.q || ""), list = App.dealersUnder(App.home()), dealer = refDealer();
+    const st = [["Unassigned", a.unassigned, "#d93025"], ["Not Contacted", a.not_contacted, "#9aa3b2"], ["Attempted", a.attempted, "#e8910c"], ["Interested", a.interested, "#1e8e3e"], ["Not Interested", a.not_interested, "#6b7280"]];
+    const donutSegs = st.map(([label, value, color]) => ({ label, value, color }));
+    const flags = M.productLeads.flags.map(x => ({ label: `${x.label} (${x.full})`, n: a[x.id], id: x.id }));
+    const mx = Math.max(1, ...flags.map(x => x.n)), reached = a.interested + a.not_interested;
+    // breakdown by the level below, with a roll-up check
+    let breakdown = "";
+    if (u.children.length) {
+      const kids = u.children.map(id => ({ id, a: plAgg(plRows(id)) })), keys = Object.keys(a), childLvl = App.levelLabel(U[u.children[0]].level), canDrill = App.can("drill_down");
+      const ok = keys.every(k => kids.reduce((s2, r) => s2 + r.a[k], 0) === a[k]);
+      const cols = [{ h: childLvl, f: r => canDrill ? `<button class="row-btn" data-unit="${r.id}">${esc(U[r.id].name)}</button>` : esc(U[r.id].name) },
+        { h: "Product leads", num: 1, f: r => r.a.total }, { h: "Unassigned", num: 1, f: r => r.a.unassigned }, { h: "Not Contacted", num: 1, f: r => r.a.not_contacted }, { h: "Attempted", num: 1, f: r => r.a.attempted },
+        { h: "Interested", num: 1, f: r => r.a.interested }, { h: "Not Interested", num: 1, f: r => r.a.not_interested },
+        ...M.productLeads.flags.map(x => ({ h: `<abbr title="${esc(x.full)}">${x.label}</abbr>`, num: 1, f: r => r.a[x.id] })),
+        { h: "Interest rate", num: 1, f: r => { const n = r.a.interested + r.a.not_interested; return n ? Math.round(100 * r.a.interested / n) + "%" : "–"; } }];
+      const foot = `<tfoot><tr><td>Total ${esc(u.name)}</td><td class="num">${a.total}</td><td class="num">${a.unassigned}</td><td class="num">${a.not_contacted}</td><td class="num">${a.attempted}</td><td class="num">${a.interested}</td><td class="num">${a.not_interested}</td>
+        ${M.productLeads.flags.map(x => `<td class="num">${a[x.id]}</td>`).join("")}<td class="num">${reached ? Math.round(100 * a.interested / reached) + "%" : "–"}</td></tr></tfoot>`;
+      breakdown = `<section class="card" style="margin-bottom:16px"><div class="card-h">BY ${esc(childLvl.toUpperCase())} ${ok ? '<span class="check-ok link">✓ Rows add up to the total</span>' : '<span class="check-bad link">✗ Roll-up mismatch</span>'}</div><div class="card-b" style="padding:0">${table(cols, kids, "Product leads by " + childLvl, foot)}</div></section>`;
+    }
+    // lead list in the layout of the Product Leads screen
+    const rows = rowsAll.filter(r => (!f.status || (f.status === "unassigned" ? !r.assignedTo : r.status === f.status)) && (!f.ppl || r.ppl === f.ppl) && (!q || [r.customer, r.mobile, r.reg].some(x => App.norm(x).includes(q))));
+    App._exportRows = rows;
+    const cols = prodCols({ lead: [{ h: "Customer Name", f: r => esc(r.customer) }], sev: true, dealer: true });
+    return App.pageHead("PRODUCT LEADS · " + App.levelLabel(u.level).toUpperCase(), tab) + App.scopeBanner() +
+      `<p class="note" style="margin-top:-6px">Product leads are sales opportunities found on a customer's vehicle (not service-due calls): ${M.productLeads.flags.map(x => `<b>${x.label}</b> = ${esc(x.full)}`).join(", ")}. The CRM at the dealership assigns them to CREs, who call the customer.</p>
+      <div class="grid g4">${App.stat("🧾", a.total, "Product leads")}${App.stat("📥", a.unassigned, "Unassigned", "var(--red)")}${App.stat("✅", a.interested, "Interested", "var(--green)")}${App.stat("📈", reached ? Math.round(100 * a.interested / reached) + "%" : "–", "Interest rate (of those reached)", "var(--purple)")}</div>
+      <div class="grid g2">${App.donutCard("Lead status", donutSegs, a.total, "Product leads")}
+        <section class="card"><div class="card-h">OPPORTUNITY TYPES (LEADS WITH EACH)</div><div class="card-b"><div class="bars">${flags.map(x => `<div class="bar-row" style="grid-template-columns:170px 1fr 50px"><span>${esc(x.label)}</span><span class="bar" role="img" aria-label="${esc(x.label)} ${x.n}"><i style="width:${100 * x.n / mx}%;background:var(--blue)"></i></span><span class="v">${x.n}</span></div>`).join("")}</div>
+          <p class="note" style="margin-top:10px">A lead can carry more than one opportunity type, so these counts add up to more than the number of leads.</p></div></section>
+        </div>
+      ${breakdown}
+      <div class="filters" role="search">${inp("f-q", "Search name, mobile, reg no.", f.q)}${sel("f-status", "Status", [["unassigned", "Unassigned"], ...M.productLeads.statuses.filter(x => x.id !== "unassigned").map(x => [x.id, x.label])], f.status)}
+        ${sel("f-ppl", "PPL", [...new Set(D.productLeads.map(l => l.ppl))], f.ppl)}<span class="grow"></span>${filterBtns()}</div>
+      <div class="list-meta">${showing(rows.length)}<span class="right">${App.can("export") ? `<button class="btn" data-act="export">⬇ Export CSV</button>` : ""}</span></div>
+      ${table(cols, pageRows(rows), "Product leads")}${pager(rows.length)}` + App.actionsPanel();
+  };
 })();

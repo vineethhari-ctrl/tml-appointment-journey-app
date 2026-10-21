@@ -1,0 +1,41 @@
+/* TML decisions (proposed; positions NOT confirmed, user Oct 2026): accept or reject a submitted claim, refer an open helpdesk case to the next team.
+   Every decision is logged (D.decisions), changes the record so all counts follow, shows on the vehicle timeline and is sent to the Dealer GM
+   in the dealer application (simulated outbox). Which position holds which decision is a what-if here (Action rights, this session only);
+   the proposed set is in model.json (permissions, decisions). */
+(function () {
+  const App = window.App, M = App.M, D = App.D, S = App.state, esc = App.esc, H = App.handlers;
+  const { table } = App.ui, T = App.tmlui, { dname, reg } = T;
+  const LOG = D.decisions = D.decisions || [], CS = D.claims || [], CHAIN = M.thd.teams;
+  const POS = ["NSM", "RSM", "ZSM", "RCSM"], DECS = M.decisions.list;
+  const nextTeam = c => CHAIN[CHAIN.indexOf(c.team) + 1], prevTeam = c => CHAIN[CHAIN.indexOf(c.team) - 1];
+  const LIM = () => Object.assign({}, M.decisions.limits.claim_amount, S.limitOver || {});
+  const money = n => "₹" + Number(n).toLocaleString("en-IN");
+  const UP = { RCSM: "ZSM", ZSM: "RSM", RSM: "NSM", NSM: null };
+  const dec = (module, action, ref, rec, note, extra = "") => { LOG.unshift({ id: "DEC-" + (LOG.length + 1), module, action, ref, visit: rec.visit, dealer: rec.dealer, division: rec.division, bd: rec.bd, reg: rec.reg, by: S.role, at: D.now, note });
+    if (App.fu) App.fu.notify(rec, "decision", `${action} ${ref}${extra}${note ? ": " + note : ""}`); S.escalations.push({ from: S.role, to: "Dealer GM", topic: action + " " + ref }); };
+  const can = id => App.can(id);
+  App.dec = {
+    claimBtns: c => c.status !== "Submitted" ? "" : (LIM()[S.role] != null && c.amount > LIM()[S.role]) ? `<span class="chip amber" title="Claim ${money(c.amount)} is above your limit ${money(LIM()[S.role])}">Above your limit${UP[S.role] ? " → " + UP[S.role] : ""}</span>` : `${can("claim_accept") ? `<button class="btn small" data-h="decClaim" data-k="Accepted" data-id="${esc(c.id)}">Accept</button> ` : ""}${can("claim_reject") ? `<button class="btn small" data-h="decClaim" data-k="Rejected" data-id="${esc(c.id)}">Reject</button>` : ""}`,
+    thdBtn: c => c.status === "open" && can("thd_refer") ? `${nextTeam(c) ? `<button class="btn small" data-h="decThd" data-dir="1" data-id="${esc(c.id)}">Refer to ${esc(nextTeam(c))}</button> ` : ""}${prevTeam(c) ? `<button class="btn small" data-h="decThd" data-dir="-1" data-id="${esc(c.id)}">Back to ${esc(prevTeam(c))}</button>` : ""}` : "",
+    log: () => LOG,
+    listHtml: rows => rows.length ? table([{ h: "No.", f: x => esc(x.id) }, { h: "Dealership", f: x => esc(dname(x.dealer)) }, { h: "Vehicle", f: x => `<b>${esc(reg(x.reg))}</b>` }, { h: "Module", f: x => esc(x.module) }, { h: "Decision", f: x => esc(x.action) }, { h: "Record", f: x => esc(x.ref) }, { h: "By", f: x => esc(x.by) }, { h: "When", f: x => esc(x.at.replace("T", " ")) }, { h: "Comment", f: x => esc(x.note || "–") }, { h: "", f: x => `<button class="btn small" data-h="tmlvj" data-id="${esc(x.visit)}">Journey</button>` }], rows, "TML decisions") : '<p class="note">No decision taken yet in this session. Use Accept or Reject on a submitted claim (Service Claims) or Refer on an open helpdesk case (Technical Helpdesk).</p>',
+    rightsHtml: () => `<section class="card" style="margin-top:16px"><div class="card-h">DECISION RIGHTS BY POSITION <span class="badge proposed">Positions not confirmed</span></div><div class="card-b" style="padding:0">${table([{ h: "Decision", f: d => esc(M.actions.find(a => a.id === d.id).label) + `<br><small class="note">${esc(d.module)} · ${esc(d.effect)}</small>` }, ...POS.map(p => ({ h: p, f: d => `<label class="note"><input type="checkbox" data-h="decRight" data-p="${p}" data-a="${d.id}" ${App.perm(p, d.id).scope ? "checked" : ""} aria-label="${p} may ${esc(d.id)}"> may</label>` }))], DECS, "Decision rights")}
+      <div style="padding:8px 14px"><b>Claim amount limit (₹)</b> <span class="badge proposed">Limits exist, values not given</span><div class="form-grid">${POS.map(p => `<label class="field"><span class="note">${p} may decide claims up to</span><input type="number" min="0" data-hc="decLimit" data-p="${p}" value="${LIM()[p] == null ? "" : LIM()[p]}" placeholder="no limit set" aria-label="${p} claim amount limit"></label>`).join("")}</div><p class="note" style="margin:4px 0 0">Empty = no limit set. A claim above the limit cannot be decided by that position and goes up a position. What-if for this session; the permanent value is in model.json decisions.limits.</p></div>
+      <p class="note" style="margin:8px 14px">${esc(M.decisions.rule)} Not yet in the app: ${M.decisions.toAdd.map(esc).join("; ")}.</p><p style="margin:0 14px 12px"><button class="btn small" data-h="decReset">Reset to the proposed positions</button></p></div></section>`
+  };
+  H.decClaim = t => { const c = CS.find(x => x.id === t.dataset.id), k = t.dataset.k; if (!c || !can(k === "Accepted" ? "claim_accept" : "claim_reject")) return App.toast("Not available for your position"); if (LIM()[S.role] != null && c.amount > LIM()[S.role]) return App.toast(`Claim ${money(c.amount)} is above your limit ${money(LIM()[S.role])}`);
+    const rej = k === "Rejected", reasons = M.reasons.claim_rejection;
+    App.modal(`${rej ? "Reject" : "Accept"} claim ${c.id}`, `<div class="bd-box"><div class="note">Claim</div><b>${esc(c.id)} · ${esc(c.type)} · submitted, ${c.age} days</b><div class="note">Vehicle</div><b>${esc(reg(c.reg))} · job card ${esc(c.jc)}</b><div class="note">Dealership</div><b>${esc(dname(c.dealer))}</b></div>
+      ${rej ? `<label class="field" for="dc-r">Reason (VCM comment) <span class="badge proposed">Proposed list</span><select id="dc-r">${reasons.map(x => `<option>${esc(x)}</option>`).join("")}</select></label>` : ""}
+      <label class="field" for="dc-n">Comment for the Dealer GM<textarea id="dc-n" rows="2"></textarea></label><p class="note">Sent to the Dealer GM in the dealer application (simulated). The dealer's claim manager works the claim.</p>`,
+      [{ label: "Cancel" }, { label: rej ? "Reject claim" : "Accept claim", primary: true, onClick: r => { const n = r.querySelector("#dc-n").value.trim(), why = rej ? r.querySelector("#dc-r").value : "";
+        c.status = k; c.vcm = why; c.decidedBy = S.role; dec("Service Claims", rej ? "Rejected claim" : "Accepted claim", c.id, c, [why, n].filter(Boolean).join(" · ")); App.render(); App.toast(`${c.id} ${k.toLowerCase()}`); } }]); };
+  H.decThd = t => { const c = D.thdCases.find(x => x.id === t.dataset.id); if (!c || !can("thd_refer")) return App.toast("Not available for your position"); const back = t.dataset.dir === "-1", nt = back ? prevTeam(c) : nextTeam(c); if (!nt) return;
+    App.modal(`${back ? "Refer back" : "Refer"} ${c.id} to ${nt}`, `<div class="bd-box"><div class="note">Case</div><b>${esc(c.id)} · ${esc(reg(c.reg))} · with ${esc(c.team)}</b><div class="note">Dealership</div><b>${esc(dname(c.dealer))}</b><div class="note">Goes to</div><b>${esc(nt)} (${back ? "previous" : "next"} team in the chain: ${CHAIN.map(esc).join(" › ")})</b></div>
+      <label class="field" for="dt-n">Comment<textarea id="dt-n" rows="2"></textarea></label><p class="note">The case moves to the next team and the Dealer GM is informed in the dealer application (simulated).</p>`,
+      [{ label: "Cancel" }, { label: "Refer case", primary: true, onClick: r => { const n = r.querySelector("#dt-n").value.trim(), from = c.team; c.team = nt; c.sub = nt === "Plant" || nt === "Product Reliability" ? "early_warning" : "investigation"; c.referred = (c.referred || 0) + 1; c.actionable = false;
+        dec("Technical Helpdesk", `Referred case ${back ? "back " : ""}${from} to ${nt}`, c.id, c, n); App.render(); App.toast(`${c.id} referred to ${nt}`); } }]); };
+  H.decRight = t => { const k = t.dataset.p + "|" + t.dataset.a; (S.permOver = S.permOver || {})[k] = t.checked; App.render(); };
+  H.decLimit = t => { (S.limitOver = S.limitOver || {})[t.dataset.p] = t.value === "" ? null : +t.value; App.toast(`${t.dataset.p} limit ${t.value === "" ? "removed" : "set to ₹" + Number(t.value).toLocaleString("en-IN")}`); };
+  H.decReset = () => { S.permOver = {}; S.limitOver = {}; App.render(); App.toast("Decision rights reset to the proposed positions"); };
+})();

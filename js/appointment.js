@@ -20,19 +20,53 @@
   const tabs = role => {
     const p = proposedScreen(role);
     switch (role) {
-      case "NSM": case "RSM": case "ZSM": case "RCSM": return [
-        T("overview", role === "RCSM" ? "Area Appointment Control" : "Appointment Overview", "overview", "proposed", p.id, "Proposed · " + p.id),
-        T("list", "Appointment List", "list", "proposed", p.id, "Proposed · drill-down list"),
-        ...(role === "RCSM" ? [T("exceptions", "Exceptions & Reassignment", "exceptions", "proposed", "P4", "Proposed · approvals")] : []), ...common];
-      case "DGM": return [T("overview", "Dealer Oversight", "overview", "proposed", "P5", "Proposed · P5"), T("list", "Appointment List", "list", "proposed", "P5", "Proposed · dealer list"), ...common];
+      case "NSM": case "RSM": case "ZSM": case "RCSM": {
+        const g = (group, ...ts) => ts.map(t => ({ ...t, group })), P = (id, label, view, scr, sub) => T(id, label, view, "proposed", scr, sub || scr);
+        return [
+          ...g("Overview", P("overview", role === "RCSM" ? "Area Appointment Control" : "Appointment Overview", "overview", p.id), P("tower", "Control Tower", "tower", "P6", "P6 · all modules"), P("modules", "Modules", "modules", "P7", "P7 · KPIs by module"), P("followups", "Actions & Follow-ups", "followups", "P28", "P28 · what TML asked, due date, outcome")),
+          ...g("Appointment", P("list", "Appointment List", "list", p.id, "drill-down list"), P("conv", "Appointment → Job Card", "conv", "P10", "P10 · conversion and reasons"), P("prodtml", "Product Leads", "prodtml", "P9", "P9 · EW, AMC, RSA, TMI"), P("calling", "Calling Performance", "calling", "P26", "P26 · leads, calls, contact rate"),
+            ...(role === "RCSM" ? [P("exceptions", "Exceptions & Reassignment", "exceptions", "P4", "P4 · approvals")] : [])),
+          ...g("Customers", P("cust360", "Customer 360", "cust360", "P24", "P24 · history across modules")),
+          ...g("Pickup & Drop", P("pdtml", "Trips", "pdTml", "P21")),
+          ...g("Security Guard", P("sgdash", "Gate Dashboard", "sgDash", "P11"), P("sgreg", "Movement Register", "sgRegister", "P12")),
+          ...g("Workshop", P("capacity", "Workshop Capacity", "capacity", "P25", "P25 · bays, technicians, slots")),
+          ...g("Job Cards", P("tracker", "Vehicle Journey Tracker", "vehTracker", "P23", "P23 · every vehicle, every touchpoint"), P("jc_all", "All Job Cards", "jcAll", "P13"), P("jc_body", "Bodyshop", "jcBody", "P15")),
+          ...g("eQC & Washing", P("eqc", "Quality and Washing", "eqcTml", "P22")),
+          ...g("Helpdesk & Spares", P("thd", "Technical Helpdesk", "thd", "P16", "P16 · cases by THD team"), P("spd", "Spares (SPD)", "spd", "P17", "P17 · MR, orders, parts not available")),
+          ...g("Claims", P("claims", "Service Claims", "claims", "P27", "P27 · by type and status")),
+          ...g("Reference", ...(App.refScreens ? [P("dealerscreens", "Dealer's Screens", "dealerscreens", "P8", "test switch only")] : []), ...common)];
+      }
+      case "DGM": return [T("overview", "Dealer Oversight", "overview", "proposed", "P5", "Proposed · P5"), T("tower", "Control Tower", "tower", "proposed", "P6", "Proposed · P6 · all modules"), T("modules", "Modules", "modules", "proposed", "P7", "Proposed · P7 · tile order"), T("list", "Appointment List", "list", "proposed", "P5", "Proposed · dealer list"), ...common];
       case "CRM": return [T("dash", "CRM Call Control Dashboard", "crmDash", "observed", 1, "Observed · screen 01"),
         T("appt", "Lead Assignment: Appointment List", "crmAppt", "observed", 7, "Observed · screen 07"),
+        T("prod", "Lead Assignment: Product Leads", "crmProd", "observed", 10, "Observed · screen 10"),
         T("due", "Service Due Leads", "dueLeads", "observed", 2, "Observed · screen 02"), ...common];
       case "CRE": return [T("calling", "Calling List: Appointment List", "creAppt", "observed", 11, "Observed · screen 11"),
+        T("callprod", "Calling List: Product Leads", "creProd", "observed", 15, "Observed · screen 15"),
         T("tele", "Tele-Caller Dashboard", "teleDash", "observed", 20, "Observed · screen 20"),
         T("search", "Customer Search", "custSearch", "observed", 4, "Observed · screen 04"), ...common];
+      case "PDA": return [T("pd_trips", "Trip List", "pdTrips", "observed", 22, "Observed · screen 22"), T("pd_avail", "Driver Availability & Assignment", "pdAvail", "observed", 30, "Observed · screen 30"),
+        T("pd_appt", "Service Appointment", "pdAppt", "observed", 24, "Observed · screen 24"), T("pd_walkin", "Service Booking (Walk-In)", "pdWalkin", "observed", 35, "Observed · screen 35"),
+        T("pd_live", "Live Tracking", "pdLive", "observed", 25, "Observed · screen 25"), T("pd_report", "Pickup & Drop Tracking Report", "pdReport", "observed", 28, "Observed · screen 28"),
+        T("pd_photos", "Work Status Photos", "pdPhotos", "observed", 31, "Observed · screen 31"), ...common];
+      case "WSA": return [T("jc_overview", "Today's Service Overview", "jcOverview", "observed", 36, "Observed · screen 36"), T("jc_body_overview", "Today's Service Overview · Bodyshop", "jcBodyOverview", "observed", 53, "Observed · screen 53"), T("jc_details", "JC Details", "jcDetails", "observed", 59, "Observed · screen 59"), ...common];
+      case "JCC": return [T("jc_tracking", "JC Tracking", "jcTracking", "observed", 37, "Observed · screen 37"), T("jc_dash", "Workshop Live Dashboard", "jcDash", "observed", 52, "Observed · screen 52"),
+        T("jc_bays", "Bay Management", "jcBays", "observed", 38, "Observed · screen 38"), T("jc_techlead", "Technician Lead", "jcTechLead", "observed", 39, "Observed · screen 39"), ...common];
+      case "QIN": return [T("qi_pre", "QI Pre Inspection", "qiPre", "observed", 43, "Observed · screen 43"), T("qi_vci", "Quality Inspection (VCI)", "qiVci", "observed", 42, "Observed · screens 41 / 42"),
+        T("qi_rework", "Rework mode", "qiRework", "observed", 49, "Observed · screen 49"), T("qi_post", "QI Post Inspection", "qiPost", "observed", 46, "Observed · screen 46"),
+        T("qi_pdi", "PDI", "qiPdi", "observed", 47, "Observed · screen 47"), T("qi_wash", "Washing", "qiWash", "observed", 48, "Observed · screen 48"), ...common];
+      case "THD": return [T("thd_det", "DET Dashboard", "thdTeam_det", "observed", 60, "Observed · screen 60"), T("thd_te", "Tech Executive Dashboard", "thdTeam_te", "observed", 61, "Observed · screen 61"), T("thd_rtsm", "RTSM Dashboard", "thdTeam_rtsm", "observed", 62, "Observed · screen 62"),
+        T("thd_coc", "L2 COC Dashboard", "thdTeam_coc", "observed", 63, "Observed · screen 63"), T("thd_plant", "Plant Dashboard", "thdTeam_plant", "observed", 65, "Observed · screen 65"), T("thd_pr", "Product Reliability Dashboard", "thdTeam_pr", "observed", 64, "Observed · screens 64 / 66"), ...common];
+      case "SPD": return [T("spd_dash", "Dashboard", "spdDash", "observed", 67, "Observed · screen 67"), T("spd_mr", "Total Open MR", "spdMr", "observed", 68, "Observed · screens 68"), T("spd_todaymr", "Today's Open MR", "spdTodayMr", "observed", 69, "Observed · screen 69"), T("spd_orders", "Order Raised", "spdOrders", "observed", 70, "Observed · screen 70"),
+        T("spd_pna", "Parts Not Available", "spdPna", "observed", 71, "Observed · screen 71"), T("spd_cpotc", "CPOTC", "spdCpotc", "observed", 72, "Observed · screen 72"), T("spd_returns", "Part Return Order", "spdReturns", "observed", 73, "Observed · screen 73"), T("spd_queries", "Part Query Details", "spdQueries", "observed", 74, "Observed · screen 74"),
+        T("spd_sapo", "SAP Orders", "spdSapOrders", "observed", 75, "Observed · screen 75"), T("spd_sappo", "SAP Purchase Order", "spdSapPo", "observed", 76, "Observed · screen 76"), T("spd_ledger", "Stock Ledger", "spdLedger", "observed", 77, "Observed · screen 77"), T("spd_invtrans", "Inventory Transactions", "spdInvTrans", "observed", 78, "Observed · screen 78"),
+        T("spd_receiving", "Receiving Line Items", "spdReceiving", "observed", 79, "Observed · screen 79"), T("spd_unident", "Part Query Helpdesk", "spdUnident", "observed", 80, "Observed · screen 80"),
+        T("spd_sched", "Schedule Service - 7 Days", "spdSched", "observed", 81, "Observed · screen 81"), T("spd_epc", "EPC Part Search", "spdEpc", "observed", 82, "Observed · screen 82"), T("spd_internal", "Internal Order", "spdInternal", "observed", 83, "Observed · screen 83"), T("spd_cppur", "CPPUR", "spdCppur", "observed", 84, "Observed · screen 84"), T("spd_icppur", "ICPPUR", "spdIcppur", "observed", 85, "Observed · screen 85"), ...common];
       case "DSA": return [T("workshop", "Workshop Configuration", "workshop", "observed", 17, "Observed · screen 17 (Smart Slot)"),
-        T("employee", "Employee Info", "employee", "observed", 18, "Observed · screens 18 / 19"), ...common];
+        T("employee", "Employee Info", "employee", "observed", 18, "Observed · screens 18 / 19"),
+        T("claims_all", "All Claims", "claimsAll", "observed", 86, "Observed · Claims screen 86"), T("claims_fsb", "FSB Claim", "claims_fsb", "observed", 88, "Observed · screen 88"), T("claims_w", "Warranty Claim", "claims_w", "observed", 90, "Observed · screen 90"),
+        T("claims_ew", "EW Claim", "claims_ew", "observed", 91, "Observed · screen 91"), T("claims_amc", "AMC Claim", "claims_amc", "observed", 87, "Observed · screen 87"), T("claims_gw", "Goodwill Claim", "claims_gw", "observed", 89, "Observed · screen 89"),
+        T("claims_pw", "Part Warranty Claim", "claims_pw", "observed", 92, "Observed · screen 92"), ...common];
     }
   };
 
@@ -51,8 +85,6 @@
     <option value="">${esc(label)}</option>${opts.map(o => { const [v, t] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${value === v ? "selected" : ""}>${esc(t)}</option>`; }).join("")}</select></label>`;
   const inp = (id, label, value, type = "text") => `<label for="${id}">${esc(label)}<input id="${id}" type="${type}" value="${esc(value || "")}" placeholder="${esc(label)}" data-hc="filter" data-enter="filterEnter" data-f="${id.replace("f-", "")}"></label>`;
   const filterBtns = () => `<button class="btn" data-h="clear">Clear</button><button class="btn primary" data-h="search">Search</button>`;
-  const leadTabs = active => `<div class="lead-tabs" role="list">${["Service Due Leads", "Appointment List", "PSF Leads", "Product Leads", active === "cre" ? "Campaign Leads" : "Updation Campaign", "Lost Customer"].map(t =>
-    t === "Appointment List" ? `<span role="listitem" class="lead-tab active" aria-current="true">${t}</span>` : `<button role="listitem" class="lead-tab" disabled title="Other lead type: outside the Appointment scope">${t}</button>`).join("")}</div>`;
   const fullName = s => esc(s);
   const ownAppts = user => D.appointments.filter(a => a.reminderAssignedTo === user || a.bookedBy === user);
 
@@ -60,10 +92,11 @@
   const views = {};
   views.overview = tab => {
     const u = U[S.unit], m = App.metrics(S.unit), p = proposedScreen(S.role);
-    const title = S.role === "RCSM" ? "AREA APPOINTMENT CONTROL" : S.role === "DGM" ? "DEALER APPOINTMENT OVERSIGHT" : "APPOINTMENT OVERVIEW · " + App.levelLabel(u.level).toUpperCase();
+    const atDealer = ["dealer", "division"].includes(u.level);
+    const title = atDealer ? "DEALER APPOINTMENT OVERSIGHT" : S.role === "RCSM" ? "AREA APPOINTMENT CONTROL" : S.role === "DGM" ? "DEALER APPOINTMENT OVERSIGHT" : "APPOINTMENT OVERVIEW · " + App.levelLabel(u.level).toUpperCase();
     const st = M.appointmentStatuses.map(s => ({ label: s.label, value: m[s.id], color: s.color }));
     const allBd = App.metrics(S.unit, "All"), pv = App.metrics(S.unit, "PV"), ev = App.metrics(S.unit, "EV");
-    let html = App.pageHead(title, tab) + App.scopeBanner() +
+    let html = App.pageHead(title, atDealer ? { ...tab, screen: "P5" } : tab) + App.scopeBanner() +
       `<div class="grid g4">${App.stat("📋", m.leads, "Service due leads")}${App.stat("📅", m.appts, "Appointments booked", "var(--purple)")}
        ${App.stat("✅", m.showRate + "%", "Show rate (Reported / Reported + No Show)", "var(--green)")}
        ${App.stat("🎯", m.target == null ? "n/a" : `${m.appts}/${m.target}`, "Appointments vs target", "var(--amber-t)")}</div>
@@ -75,7 +108,7 @@
        ${App.donutCard("Business division (PV/EV)", [{ label: "PV appointments", value: pv.appts, color: "var(--blue)" }, { label: "EV appointments", value: ev.appts, color: "var(--green)" }], allBd.appts, "All divisions",
           `<p class="note" style="margin-top:10px">Split shown for All; the filter above narrows every other figure.</p>`)}</div>`;
     if (u.children.length) html += breakdown(u, m);
-    if (S.role === "DGM") html += workload(dealerOf());
+    if (u.level === "dealer") html += workload(dealerOf());
     return html + App.actionsPanel();
   };
   const breakdown = (u, m) => {
@@ -104,14 +137,14 @@
       reminders: D.appointments.filter(a => a.reminderAssignedTo === s.id && OPEN.concat("no_show").includes(a.status) && App.bdOk(a)).length }));
     const cols = [{ h: "Staff", f: r => esc(r.s.id) }, { h: "Role", f: r => r.s.role }, { h: "Assigned leads", num: 1, f: r => r.leads },
       { h: "Not attempted", num: 1, f: r => r.notAttempted }, { h: "Appts booked", num: 1, f: r => r.booked }, { h: "Open reminder / no-show calls", num: 1, f: r => r.reminders }];
-    return `<section class="card"><div class="card-h">CRE / CRM workload <span class="link"><button class="btn small" data-act="reassign_staff" ${App.can("reassign_staff") ? "" : 'aria-disabled="true"'}>Reassign between CRE and CRM</button></span></div>
+    return `<section class="card"><div class="card-h">CRE / CRM workload <span class="link"><button class="btn small" data-act="reassign_staff" ${App.can("reassign_staff") ? "" : 'aria-disabled="true" data-deny="Done by the Dealer GM at the dealership"'}>Reassign between CRE and CRM</button></span></div>
       <div class="card-b" style="padding:0">${table(cols, rows, "Staff workload")}</div></section>`;
   };
 
   /* ---------- PROPOSED: appointment list for TML / Dealer GM ---------- */
   const filterAppts = base => base.filter(a => {
-    const f = S.filters, q = (f.q || "").toLowerCase();
-    return (!q || [a.customer, a.mobile, a.reg, a.id].some(x => x.toLowerCase().includes(q))) && (!f.status || a.status === f.status) && (!f.channel || a.channel === f.channel);
+    const f = S.filters, q = App.norm(f.q || "");
+    return (!q || [a.customer, a.mobile, a.reg, a.id].some(x => App.norm(x).includes(q))) && (!f.status || a.status === f.status) && (!f.channel || a.channel === f.channel);
   });
   views.list = tab => {
     const rows = filterAppts(D.appointments.filter(a => App.inScope(a) && App.bdOk(a))).sort((a, b) => b.date.localeCompare(a.date));
@@ -165,7 +198,7 @@
       { h: "Assignment<br>Status", f: r => r.reminderAssignedTo ? `${App.chip("Assigned", "green")} <span class="note">${esc(r.reminderAssignedTo)}</span>` : App.chip("Unassigned", "red") },
       { h: "Call Status", f: r => r.reminderCallStatus === "-" ? "-" : App.chip(r.reminderCallStatus, r.reminderCallStatus === "Attempted" ? "green" : "red") }];
     const k = (id, n, label, color) => `<button class="kpi-tab" id="kpi-${id}" data-h="kpi" data-k="${id}" aria-pressed="${kpi === id}"><b style="color:${color}">${n}</b>${label}</button>`;
-    return App.pageHead("Lead Assignment : Appointment List", tab) + App.scopeBanner({ bdLabel: "Vehicle (All / PV / EV)" }) + leadTabs("crm") +
+    return App.pageHead("Lead Assignment : Appointment List", tab) + App.scopeBanner({ bdLabel: "Vehicle (All / PV / EV)" }) + App.ui.leadTabs("Appointment List") +
       `<div class="kpi-tabs">${k("unassigned", calls.filter(a => !a.reminderAssignedTo).length, "Unassigned", "var(--red)")}${k("assigned", calls.filter(a => a.reminderAssignedTo).length, "Assigned", "var(--green)")}${k("scheduled", scheduled.length, "Appt. Scheduled", "var(--blue)")}</div>
       <div class="filters" role="search">${sel("f-workshop", "Workshop", U[dealer].children, f.workshop)}${sel("f-calltype", "Call Type", ["Reminder", "No show"], f.calltype)}
         ${inp("f-date", "Appt. Date", f.date, "date")}${inp("f-variant", "Variant", f.variant)}${sel("f-assignee", "Assigned To", cres, f.assignee)}<span class="grow"></span>${filterBtns()}${App.ui.iconBtns()}</div>
@@ -187,7 +220,7 @@
       { h: "Service Due Date", f: r => App.fmtDate(r.serviceDueDate) }, { h: "Service Due Kms", f: r => r.serviceDueKms }, { h: "Appt. Date &amp; Time", f: r => `${App.fmtDate(r.date)}<br>${r.time}` },
       { h: "Status", f: r => App.statusChip(r.status) }, { h: "Last Action", f: r => App.fmtDate(r.lastAction) }];
     const k = (id, n, label, color) => `<button class="kpi-tab" id="kpi-${id}" data-h="kpi" data-k="${id}" aria-pressed="${kpi === id}"><b style="color:${color}">${n}</b>${label}</button>`;
-    return App.pageHead("Calling List : Service Due Reminder", tab) + App.scopeBanner({ crumbs: false, bdLabel: "Vehicle (All / PV / EV)" }) + leadTabs("cre") +
+    return App.pageHead("Calling List : Service Due Reminder", tab) + App.scopeBanner({ crumbs: false, bdLabel: "Vehicle (All / PV / EV)" }) + App.ui.leadTabs("Appointment List") +
       `<div class="kpi-tabs">${k("all", mine.length, "Total Appt. Booked", "var(--blue)")}${k("reminder", mine.filter(a => a.callType === "Reminder").length, "Reminder", "var(--amber-t)")}${k("noshow", mine.filter(a => a.status === "no_show").length, "No Show", "var(--purple)")}</div>
       <div class="filters" role="search">${sel("f-stype", "Service Type", ["Paid Service", "Free Service"], f.stype)}${inp("f-ddate", "Service Due Date", f.ddate, "date")}
         ${sel("f-status", "Status", M.appointmentStatuses.map(s => [s.id, s.label]), f.status)}${sel("f-prio", "Priority", ["High", "Normal"], f.prio)}<span class="grow"></span>${filterBtns()}${App.ui.iconBtns()}</div>
@@ -328,13 +361,13 @@
         App.render(); App.toast("Targets saved (in this demo session)");
       } }]);
   };
-  const escalateModal = () => {
+  const escalateModal = (mod) => {
     const u = U[S.unit], isDgm = S.role === "DGM";
     const area = isDgm ? U[dealerOf()].parent : null;
     const units = isDgm ? [] : (u.children.length && u.level !== "dealer" ? u.children : [u.level === "division" ? u.parent : u.id]);
-    const types = isDgm ? ["Dealer-to-dealer reassignment request", "Target change request", ...M.escalation.topics] : M.escalation.topics;
+    const types = isDgm ? ["Dealer-to-dealer reassignment request", "Target change request", ...M.escalation.topics] : (M.escalation.moduleTopics[mod] || M.escalation.topics);
     const root = App.modal(isDgm ? "Escalate to RCSM" : "Raise escalation", `<p class="note">${esc(M.escalation.rules[S.role])}.</p>
-      ${isDgm ? "" : `<label class="field" for="m-u">Unit<select id="m-u">${units.map(id => `<option value="${id}">${esc(U[id].name)} → ${ownerRole(U[id].level)}</option>`).join("")}</select></label>`}
+      ${isDgm ? "" : `<label class="field" for="m-u">Unit<select id="m-u">${units.map(id => `<option value="${id}">${esc(U[id].name)}${U[id].city ? ", " + esc(U[id].city) : ""} → ${ownerRole(U[id].level)}${U[id].csm ? " · CSM " + esc(U[id].csm.split(" (")[0]) + " " + esc(U[id].csmPhone) : ""}</option>`).join("")}</select></label>`}
       <label class="field" for="m-ty">Topic<select id="m-ty">${types.map(x => `<option>${esc(x)}</option>`).join("")}</select></label>
       ${isDgm ? `<div class="form-grid" id="m-reasg"><label class="field" for="m-to">To dealer (reassignment)<select id="m-to">${U[area].children.filter(d => d !== dealerOf()).map(d => `<option>${d}</option>`).join("")}</select></label>
         <label class="field" for="m-n">Leads (reassignment) / new PV target (target change)<input id="m-n" type="number" min="1" value="5"></label></div>` : ""}
@@ -356,7 +389,8 @@
   /* ---------- CSV export ---------- */
   const exportCsv = () => {
     const rows = App._exportRows || D.appointments.filter(a => App.inScope(a) && App.bdOk(a));
-    const cols = ["id", "customer", "mobile", "reg", "ppl", "pl", "serviceType", "date", "time", "channel", "status", "dealer", "division", "bd"];
+    const cols = rows.length && "opps" in rows[0] ? ["id", "customer", "mobile", "reg", "ppl", "pl", "opps", "ew", "amc", "rsa", "tmi", "dealer", "division", "assignedTo", "status", "bd"]
+      : ["id", "customer", "mobile", "reg", "ppl", "pl", "serviceType", "date", "time", "channel", "status", "dealer", "division", "bd"];
     const csv = [cols.join(","), ...rows.map(r => cols.map(c => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(","))].join("\r\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = `appointments_${S.unit}_${S.bd}.csv`; document.body.appendChild(a); a.click(); a.remove();
@@ -366,9 +400,47 @@
   /* ---------- action dispatcher (actions panel and inline buttons) ---------- */
   const firstTab = () => tabs(S.role)[0].id;
   const hasTab = id => tabs(S.role).some(t => t.id === id);
-  const doAction = (id, el) => {
-    if (!App.can(id)) return App.toast(App.perm(S.role, id).deny);
+  /* TML actions act on the screen you are on: each screen belongs to a module, and the action panel works on that module */
+  const MOD_OF = { overview: "appointment", list: "appointment", conv: "appointment", prodtml: "appointment", calling: "appointment", exceptions: "appointment", tower: "cross", modules: "cross", followups: "cross", tracker: "cross", cust360: "customer", pdtml: "pickup_drop", sgdash: "security_guard", sgreg: "security_guard", capacity: "jc", jc_all: "jc", jc_body: "jc", eqc: "eqc", thd: "thd", spd: "spd", claims: "claims" };
+  const TILE_OF = { appointment: "appointment_reminder", cross: "jc_tracking", customer: "customer_journey", pickup_drop: "pickup_drop", security_guard: "security_guard", jc: "jc_tracking", eqc: "eqc_washing", thd: "thd", spd: "spd", claims: "auth_claims" };
+  const LIST_OF = { appointment: "list", cross: "tracker", customer: "cust360", pickup_drop: "pdtml", security_guard: "sgreg", jc: "jc_all", eqc: "eqc", thd: "thd", spd: "spd", claims: "claims" };
+  const tableCsv = () => { const t = document.querySelector("#main table"); if (!t) return App.toast("No table on this screen to export"); const rows = [...t.querySelectorAll("tr")].map(r => [...r.children].map(c => `"${c.textContent.replace(/\s+/g, " ").trim().replace(/"/g, '""')}"`).join(","));
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([rows.join("\r\n")], { type: "text/csv" })); a.download = `${S.tab}_${S.unit}.csv`; document.body.appendChild(a); a.click(); a.remove(); App.toast(`Exported ${rows.length - 1} rows (placeholder data)`); };
+  const pickVehicle = fn => { const vs = D.visits.filter(v => App.inScope({ dealer: v.dealer }) && v.jc && v.jc.status !== "closed").slice(0, 60);
+    App.modal("Choose the vehicle", `<label class="field" for="pv-v">Vehicle (in your scope, job card open)<select id="pv-v">${vs.map(v => `<option value="${v.id}">${esc(v.reg)} · ${esc(v.model)} · ${esc(v.jc.id)}</option>`).join("")}</select></label><p class="note">Or open a vehicle from the Vehicle Journey Tracker.</p>`,
+      [{ label: "Cancel" }, { label: "Continue", primary: true, onClick: r => { const id = r.querySelector("#pv-v").value; setTimeout(() => fn(id), 0); } }]); };
+  const TML_DO = new Set(["view_kpis", "view_reports", "view_list", "drill_down", "filter_search", "view_360", "export", "escalate", "follow_up", "watch_vehicle", "close_follow_up", "comment_follow_up", "claim_accept", "claim_reject", "thd_refer"]);
+  const doTml = (id) => { const mod = MOD_OF[S.tab] || "cross", vid = S.tab === "tracker" && S.filters.vid, H0 = App.handlers, fake = (o) => H0[o.h]({ dataset: o.d, checked: true });
     switch (id) {
+      case "view_kpis": return App.go("modules", { mod: TILE_OF[mod] });
+      case "view_reports": return App.go("tower");
+      case "view_list": { const t = document.querySelector("#main .table-wrap"); if (t) { t.scrollIntoView({ block: "start" }); return App.toast("List on this screen"); } return App.go(LIST_OF[mod]); }
+      case "drill_down": { const b = document.querySelector("#main [data-unit]"); if (b) { b.scrollIntoView({ block: "center" }); b.focus(); return App.toast("Select a name in the breakdown table to drill down"); } return App.go("modules", { mod: TILE_OF[mod] }); }
+      case "filter_search": { const f = document.querySelector("#main [data-f]"); if (f) { f.focus(); return App.toast("Type in the search box on this screen, then Search"); } const g = document.getElementById("gsearch"); g && g.focus(); return App.toast("Type a vehicle number, VIN, mobile or customer name"); }
+      case "view_360": return App.go("cust360");
+      case "export": { const b = document.querySelector('#main [data-h="tmlcsv"]'); if (b) return b.click(); return mod === "appointment" ? exportCsv() : tableCsv(); }
+      case "escalate": return vid ? fake({ h: "fuNew", d: { m: "", id: vid, ref: "" } }) : escalateModal(mod);
+      case "follow_up": return vid ? fake({ h: "fuNew", d: { m: "", id: vid, ref: "" } }) : pickVehicle(v => fake({ h: "fuNew", d: { m: "", id: v, ref: "" } }));
+      case "watch_vehicle": return vid ? fake({ h: "fuWatch", d: { id: vid } }) : App.go("followups", { sec: "watch" });
+      case "close_follow_up": case "comment_follow_up": return App.go("followups", { sec: "responded" });
+      case "claim_accept": case "claim_reject": App.go("claims", { sec: "all", st: "Submitted" }); return App.toast("Submitted claims shown: use Accept or Reject on a row");
+      case "thd_refer": return App.go("thd");
+    }
+  };
+  const HERE = { view_tower: "You are on the Control Tower", view_reports: "Reports and trends are on this Control Tower screen", view_360: "Customer 360: search a customer or vehicle above, or open one from a list", view_list: "The list is this screen: use the buckets and filters above", thd_refer: "Use Refer on an open case in the list", approve_exception: "The exceptions to approve are on this screen" };
+  const doAction = (id, el) => {
+    const tab0 = S.tab; const r = doAction0(id, el);
+    setTimeout(() => { const t = document.getElementById("toast"); if (S.tab === tab0 && !document.querySelector(".modal") && t && t.hidden) App.toast(HERE[id] || "Done on this screen"); }, 0);
+    return r;
+  };
+  const doAction0 = (id, el) => {
+    if (!App.can(id)) return App.toast(App.perm(S.role, id).deny || App.READONLY);
+    if (App.role(S.role).appUser && !S.ref && TML_DO.has(id)) return doTml(id);
+    switch (id) {
+      case "view_tower": return App.go("tower");
+      case "assign_driver": case "request_live_location": return App.go("pd_avail");
+      case "book_walkin": return App.go("pd_walkin");
+      case "cancel_pickup_drop": return App.go("pd_appt");
       case "view_kpis": case "view_reports": return App.go(S.role === "CRE" ? "tele" : firstTab());
       case "view_list": return App.go(hasTab("list") ? "list" : hasTab("appt") ? "appt" : "calling");
       case "drill_down": App.go(firstTab()); return App.toast("Select a name in the breakdown table to drill down");
@@ -379,6 +451,7 @@
       case "set_targets": return setTargetsModal();
       case "escalate": return escalateModal();
       case "approve_exception": return App.go("exceptions");
+      case "follow_up": case "close_follow_up": case "watch_vehicle": App.go("followups"); return App.toast(id === "follow_up" ? "Use Take action on a vehicle page or on a row of Job Cards, THD, Spares or Claims" : "Follow-ups and watchlist are on this screen");
       case "reassign_dealers": return reassignDealersModal();
       case "reassign_staff": return reassignStaffModal();
       case "assign": return App.go("appt");
