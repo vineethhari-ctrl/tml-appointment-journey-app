@@ -121,10 +121,28 @@
       <span class="role-group-label">${g.group}</span>
       ${g.roles.map(id => { const r = App.role(id); return `<button class="role-btn" id="role-${id}" data-role="${id}" aria-pressed="${S.role === id}" title="${esc(r.name)}">${id === "DGM" ? "Dealer GM" : id === "DSA" ? "Dealer Service Admin" : id}</button>`; }).join("")}
     </div>`).join("");
-    const r = App.role(S.role);
-    App.$("#persona").innerHTML = `${esc(r.name)}<small>${esc(App.scopeText())}</small>`;
   };
 
+  /* Screen frame of the Service Transformation app: header (search, bell, user) and the narrow icon rail. */
+  App.headerFor = tab => {
+    const h = M.sandbox.header, observed = tab.basis === "observed" && tab.screen;
+    if (observed) return { ...h.default, ...(h.screens[tab.screen] || {}), search: tab.screen === 11 && !!App.mod().tabs(S.role).some(t => t.id === "search") };
+    return { ...h.default, sub: App.role(S.role).name, search: false };
+  };
+  App.renderHeader = tab => {
+    const h = App.headerFor(tab);
+    App.$("#hdr").innerHTML = `${h.search ? `<form class="gsearch" role="search" onsubmit="return false"><label class="sr-only" for="gsearch">Search vehicle no., VIN, mobile no., customer name</label>
+      <input id="gsearch" placeholder="Search Vehicle No., VIN, Mobile No. Customer Name,..." data-enter="gsearch"><button type="button" class="gs-btn" data-h="gsearch" aria-label="Search">🔍</button></form>` : ""}
+      <span class="bell" role="img" aria-label="${h.badge} notifications">🔔<b>${h.badge}</b></span>
+      <span class="avatar" aria-hidden="true">${esc(h.initials)}</span><span class="uname">${esc(h.user)}<small>${esc(h.sub)}</small></span>`;
+  };
+  App.frame = (tab, html) => {
+    if (["journey", "matrix"].includes(tab.view)) return html;
+    const gears = [1, 2, 3, 4, 5, 6, 7, 8].map((n, i) => `<span class="rail-btn${i === 0 ? " on" : ""}">⚙</span>`).join("");
+    const menu = tab.screen === 2 && tab.basis === "observed" ? `<nav class="menu-panel" aria-label="Application menu (as in screen 02)"><span class="mp-back">←</span>${
+      ["Dashboard", "Lead Assignment", "Inbound Lead Manageme…", "Marketing Campaign List", "External Lead Upload", "Tele-Caller Dashboard", "Customer 360"].map((x, i) => `<span class="mp-item${i === 0 ? " on" : ""}">${esc(x)}</span>`).join("")}</nav>` : "";
+    return `<div class="appframe"><aside class="rail" aria-hidden="true"><span class="rail-btn">☰</span>${gears}</aside>${menu}<div class="appmain">${html}</div></div>`;
+  };
   App.mod = () => App.modules[S.module];
   App.renderTabs = () => {
     const tabs = App.mod().tabs(S.role);
@@ -143,7 +161,8 @@
     const a = document.activeElement, fid = a && a.id && a !== document.body ? a.id : null;
     App.renderRoles(); App.renderTabs();
     const tab = App.mod().tabs(S.role).find(t => t.id === S.tab);
-    App.$("#main").innerHTML = App.mod().views[tab.view](tab);
+    App.renderHeader(tab);
+    App.$("#main").innerHTML = App.frame(tab, App.mod().views[tab.view](tab));
     if (fid) { const el = document.getElementById(fid); if (el && !el.disabled) el.focus(); }
   };
 

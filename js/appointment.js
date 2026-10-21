@@ -144,33 +144,6 @@
       <div style="margin:16px 0"><button class="btn primary" data-act="reassign_dealers">Reassign leads between dealers…</button></div>` + App.actionsPanel();
   };
 
-  /* ---------- OBSERVED 01: CRM CALL CONTROL DASHBOARD ---------- */
-  views.crmDash = tab => {
-    const leads = D.leads.filter(l => App.inScope(l) && App.bdOk(l));
-    const appts = D.appointments.filter(a => App.inScope(a) && App.bdOk(a) && a.callType !== "-");
-    const svc = { a: leads.filter(l => l.assignedTo).length, u: leads.filter(l => !l.assignedTo).length, due: leads.filter(l => !l.apptId && daysBetween(today, l.dueDate) <= 7).length };
-    const apl = { a: appts.filter(a => a.reminderAssignedTo).length, u: appts.filter(a => !a.reminderAssignedTo).length, due: appts.filter(a => a.date >= today).length };
-    const asg = leads.filter(l => l.assignedTo), cnt = k => asg.filter(l => l.outcome === k).length;
-    const att = asg.filter(l => l.callStatus === "Attempted").length, con = asg.filter(l => l.contact === "Contacted").length;
-    const outcome = [{ label: "Attempted", value: att, color: "var(--blue)" }, { label: "Not Attempted", value: asg.length - att, color: "#9aa3b2" },
-      { label: "Contacted", value: con, color: "var(--green)" }, { label: "Not Contacted", value: att - con, color: "var(--red)" },
-      { label: "Call Back", value: cnt("Call Back"), color: "var(--amber)" }, { label: "Appt. Booked", value: cnt("Appt. Booked"), color: "var(--purple)" },
-      { label: "Wrong No.", value: cnt("Wrong No."), color: "#b45309" }, { label: "Not Interested", value: cnt("Not Interested"), color: "#be123c" },
-      { label: "Service Enquiry", value: cnt("Service Enquiry"), color: "#0e7490" }];
-    const donutSegs = [outcome[1], outcome[3], ...outcome.slice(4)];
-    const mini = (title, d) => `<div style="flex:1;min-width:200px"><div class="card-h" style="border:0;padding:0 0 8px">${title}</div><div class="donut-wrap">${App.donut([{ label: "Assigned", value: d.a, color: "var(--green)" }, { label: "Unassigned", value: d.u, color: "var(--amber)" }], d.a + d.u, "Total leads", 120)}
-      <ul class="legend"><li><span class="dot" style="background:var(--green)"></span>Assigned<span class="v">${d.a}</span></li><li><span class="dot" style="background:var(--amber)"></span>Unassigned<span class="v">${d.u}</span></li><li><span class="dot" style="background:#a16207"></span>Due<span class="v">${d.due}</span></li></ul></div></div>`;
-    return App.pageHead("CRM CALL CONTROL DASHBOARD", tab) + App.scopeBanner({ bdLabel: "Vehicle (All / PV / EV)" }) +
-      `<div class="grid g2"><section class="card"><div class="card-h">Service due leads</div><div class="card-b"><div class="donut-wrap" style="align-items:flex-start">
-        ${App.donut([{ label: "SVC Reminder", value: svc.a + svc.u, color: "var(--blue)" }, { label: "Appointment List", value: apl.a + apl.u, color: "#c7cdd6" }], svc.a + svc.u + apl.a + apl.u, "Total leads", 150)}
-        ${mini("SVC Reminder", svc)}${mini("Appointment List", apl)}</div>
-        <p style="margin:12px 0 0"><button class="btn small" data-h="goAppt" data-k="unassigned">Open Appointment List · Unassigned (${apl.u})</button> <button class="btn small" data-h="goAppt" data-k="assigned">Assigned (${apl.a})</button></p></div></section>
-       <section class="card"><div class="card-h">Call outcome analytics</div><div class="card-b"><div class="donut-wrap">${App.donut(donutSegs, asg.length, "Total assigned")}${App.legend(outcome)}</div></div></section></div>
-      <p class="note">Other lead-type cards on this dashboard are outside the Appointment scope:</p>
-      <div class="muted-cards">${["Product Leads", "External Leads", "Inbound Leads", "PSF Leads", "Lapsed Leads", "Lost Leads", "Closed / Inactive"].map(x => `<span>${x}</span>`).join("")}</div>` + App.actionsPanel();
-  };
-  H.goAppt = t => App.go("appt", { kpi: t.dataset.k });
-
   /* ---------- OBSERVED 07: Lead Assignment : Appointment List ---------- */
   views.crmAppt = tab => {
     const base = D.appointments.filter(a => App.inScope(a) && App.bdOk(a));
@@ -195,32 +168,10 @@
     return App.pageHead("Lead Assignment : Appointment List", tab) + App.scopeBanner({ bdLabel: "Vehicle (All / PV / EV)" }) + leadTabs("crm") +
       `<div class="kpi-tabs">${k("unassigned", calls.filter(a => !a.reminderAssignedTo).length, "Unassigned", "var(--red)")}${k("assigned", calls.filter(a => a.reminderAssignedTo).length, "Assigned", "var(--green)")}${k("scheduled", scheduled.length, "Appt. Scheduled", "var(--blue)")}</div>
       <div class="filters" role="search">${sel("f-workshop", "Workshop", U[dealer].children, f.workshop)}${sel("f-calltype", "Call Type", ["Reminder", "No show"], f.calltype)}
-        ${inp("f-date", "Appt. Date", f.date, "date")}${inp("f-variant", "Variant", f.variant)}${sel("f-assignee", "Assigned To", cres, f.assignee)}<span class="grow"></span>${filterBtns()}</div>
+        ${inp("f-date", "Appt. Date", f.date, "date")}${inp("f-variant", "Variant", f.variant)}${sel("f-assignee", "Assigned To", cres, f.assignee)}<span class="grow"></span>${filterBtns()}${App.ui.iconBtns()}</div>
       <div class="list-meta">${showing(rows.length, S.selected.size ? ` · ${S.selected.size} selected` : "")}<span class="right">
         <button class="btn primary" data-h="bulkAppt" ${canAssign ? "" : "disabled"}>Bulk Assign</button></span></div>
       ${table(cols, pr, "Appointment list for reminder and no-show calls")}${pager(rows.length)}` + App.actionsPanel();
-  };
-
-  /* ---------- OBSERVED 02: Service Due Leads ---------- */
-  views.dueLeads = tab => {
-    const f = S.filters;
-    let rows = D.leads.filter(l => App.inScope(l) && App.bdOk(l) && !l.apptId);
-    rows = rows.filter(l => (!f.stype || l.serviceType === f.stype) && (!f.ppl || l.ppl === f.ppl) && (!f.lstatus || (f.lstatus === "Assigned") === !!l.assignedTo)
-      && (!f.band || (f.band === "7-9" ? (d => d >= 7 && d <= 9) : (d => d >= 15 && d <= 30))(daysBetween(today, l.dueDate))));
-    rows.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-    App._exportRows = rows;
-    const pr = pageRows(rows), canAssign = App.can("assign"), allSel = pr.length && pr.every(r => S.selected.has(r.id));
-    const cols = [{ h: `<input type="checkbox" aria-label="Select all on page" data-h="selall" ${allSel ? "checked" : ""} ${canAssign ? "" : "disabled"}>`, f: r => `<input type="checkbox" aria-label="Select ${esc(r.customer)}" data-h="sel" data-id="${r.id}" ${S.selected.has(r.id) ? "checked" : ""} ${canAssign ? "" : "disabled"}>` },
-      { h: "Mobile No.", f: r => r.mobile }, { h: "Reg No.", f: r => r.reg }, { h: "PPL", f: r => esc(r.ppl) }, { h: "PL", f: r => esc(r.pl) }, { h: "Service Type", f: r => r.serviceType },
-      { h: "Due Date", f: r => App.fmtDate(r.dueDate) }, { h: "Assigned To", f: r => esc(r.assignedTo || "-") },
-      { h: "Status", f: r => r.assignedTo ? App.chip("Assigned", "green") : App.chip("Unassigned", "red") },
-      { h: "Days Left", f: r => `${daysBetween(today, r.dueDate)} Days` }, { h: "Vehicle Type", f: r => r.bd }, { h: "Call Attempt", f: r => r.callStatus === "Attempted" ? "1" : "-" }];
-    return App.pageHead("Service Due Leads", tab) + App.scopeBanner({ bdLabel: "Vehicle (All / PV / EV)" }) +
-      `<p class="note">Source of appointments: a service-due lead becomes an appointment when the CRE's call outcome is "Appt. Booked". Leads already booked are not listed.</p>
-      <div class="filters" role="search">${sel("f-stype", "Service Type", ["Paid Service", "Free Service"], f.stype)}${sel("f-ppl", "PPL", [...new Set(D.leads.map(l => l.ppl))], f.ppl)}
-        ${sel("f-lstatus", "Status", ["Unassigned", "Assigned"], f.lstatus)}${sel("f-band", "Days left", [["7-9", "7-9 Days"], ["15-30", "15-30 Days"]], f.band)}<span class="grow"></span>${filterBtns()}</div>
-      <div class="list-meta">${showing(rows.length, S.selected.size ? ` · ${S.selected.size} selected` : "")}<span class="right"><button class="btn primary" data-h="bulkLeads" ${canAssign ? "" : "disabled"}>Bulk Assign</button></span></div>
-      ${table(cols, pr, "Service due leads")}${pager(rows.length)}` + App.actionsPanel();
   };
 
   /* ---------- OBSERVED 11: Calling List (CRE) ---------- */
@@ -239,118 +190,10 @@
     return App.pageHead("Calling List : Service Due Reminder", tab) + App.scopeBanner({ crumbs: false, bdLabel: "Vehicle (All / PV / EV)" }) + leadTabs("cre") +
       `<div class="kpi-tabs">${k("all", mine.length, "Total Appt. Booked", "var(--blue)")}${k("reminder", mine.filter(a => a.callType === "Reminder").length, "Reminder", "var(--amber-t)")}${k("noshow", mine.filter(a => a.status === "no_show").length, "No Show", "var(--purple)")}</div>
       <div class="filters" role="search">${sel("f-stype", "Service Type", ["Paid Service", "Free Service"], f.stype)}${inp("f-ddate", "Service Due Date", f.ddate, "date")}
-        ${sel("f-status", "Status", M.appointmentStatuses.map(s => [s.id, s.label]), f.status)}${sel("f-prio", "Priority", ["High", "Normal"], f.prio)}<span class="grow"></span>${filterBtns()}</div>
+        ${sel("f-status", "Status", M.appointmentStatuses.map(s => [s.id, s.label]), f.status)}${sel("f-prio", "Priority", ["High", "Normal"], f.prio)}<span class="grow"></span>${filterBtns()}${App.ui.iconBtns()}</div>
       <div class="list-meta">${showing(rows.length)} · select a customer name to call<span class="right"><button class="btn primary" data-act="book">+ Book appointment</button></span></div>
       ${table(cols, pageRows(rows), "My appointment calling list")}${pager(rows.length)}` + App.actionsPanel();
   };
-
-  /* ---------- OBSERVED 20: TELE-CALLER DASHBOARD ---------- */
-  views.teleDash = tab => {
-    const user = App.user(), dealer = dealerOf();
-    const leads = D.leads.filter(l => l.assignedTo === user && App.bdOk(l)), appts = ownAppts(user).filter(App.bdOk);
-    const calls = leads.filter(l => l.callStatus === "Attempted").length + appts.filter(a => a.reminderCallStatus === "Attempted").length;
-    const connected = leads.filter(l => l.contact === "Contacted").length;
-    const booked = leads.filter(l => l.outcome === "Appt. Booked").length;
-    const t = D.targets[dealer], ct = D.creTargets[user], target = S.bd === "All" ? ct : Math.round(ct * t[S.bd] / Math.max(1, t.PV + t.EV));
-    const rep = appts.filter(a => a.status === "reported").length, ns = appts.filter(a => a.status === "no_show").length, show = App.pct(rep, rep + ns);
-    const ch = [["Inbound Call", "var(--blue)"], ["IRA", "var(--green)"], ["Follow-Up", "var(--purple)"]].map(([c, col]) => ({ label: c, value: appts.filter(a => a.channel === c).length, color: col }));
-    ch.forEach(c => c.suffix = ` (${App.pct(c.value, appts.length)}%)`);
-    const todays = appts.filter(a => a.date === today), list = (todays.length ? todays : appts.filter(a => a.date > today && OPEN.includes(a.status)).slice(0, 5));
-    const days = [...Array(13)].map((_, i) => addDays(today, i - 6)), perDay = days.map(d => appts.filter(a => a.date === d).length), mx = Math.max(1, ...perDay);
-    const chart = `<svg viewBox="0 0 390 150" role="img" aria-label="Own appointments by date: ${days.map((d, i) => App.fmtDate(d) + " " + perDay[i]).join(", ")}" style="width:100%;height:auto">
-      ${perDay.map((v, i) => `<rect x="${10 + i * 29}" y="${120 - 100 * v / mx}" width="18" height="${100 * v / mx}" rx="3" fill="${days[i] === today ? "var(--blue)" : "#b9cdf3"}"/>
-      <text x="${19 + i * 29}" y="${114 - 100 * v / mx}" font-size="9" text-anchor="middle" fill="#1f2937">${v || ""}</text>
-      <text x="${19 + i * 29}" y="138" font-size="8" text-anchor="middle" fill="#5b6474">${days[i].slice(8)}/${days[i].slice(5, 7)}</text>`).join("")}</svg>`;
-    const disp = ["Appt. Booked", "Not Interested", "Call Back", "Service Enquiry", "Wrong No."].map((o, i) => ({ label: o === "Call Back" ? "Call Back Later" : o,
-      n: leads.filter(l => l.outcome === o).length, color: ["var(--blue)", "var(--green)", "var(--purple)", "var(--amber)", "#9aa3b2"][i] }));
-    const dm = Math.max(1, ...disp.map(d => d.n));
-    const fups = leads.filter(l => l.outcome === "Call Back").slice(0, 5);
-    return App.pageHead("TELE-CALLER DASHBOARD", tab) + App.scopeBanner({ crumbs: false, bdLabel: "Vehicle (All / PV / EV)" }) +
-      `<div class="grid g4">${App.stat("👥", calls, "Total Calls")}${App.stat("📞", connected, "Connected Calls", "var(--amber-t)")}${App.stat("📅", booked, "Appt. Booked", "var(--purple)")}${App.stat("🎯", `${target}/${booked}`, "Todays Target (Appt.)", "var(--green)")}</div>
-      <div class="grid g3"><section class="card"><div class="card-h">Performance trend</div><div class="card-b">${chart}<p class="note">Own appointments by appointment date (today highlighted).</p></div></section>
-        ${App.donutCard("Appointment score", ch, appts.length, "Total")}
-        <section class="card"><div class="card-h">${todays.length ? `Today's appointment (booked) ${todays.length}` : "Upcoming appointments"}<button class="row-btn link" data-tab="calling">View All ›</button></div><div class="card-b"><ul class="list-plain">
-          ${list.map(a => `<li><div>${esc(a.customer)}<div class="sub">${a.reg} · ${esc(a.ppl)} · ${App.fmtDate(a.date)} ${a.time}</div></div><span style="margin-left:auto">${App.statusChip(a.status)}</span></li>`).join("") || '<li class="note">None</li>'}</ul></div></section></div>
-      <div class="grid g3"><section class="card"><div class="card-h">My performance vs target</div><div class="card-b">${App.bars([
-          { label: "Connected Calls", pct: App.pct(connected, calls), text: `${connected}/${calls}`, color: "var(--green)" },
-          { label: "Appt. Booked", pct: App.pct(booked, target), text: `${booked}/${target}`, color: "var(--purple)" },
-          { label: "Show Rate", pct: show, text: `${show}%`, color: "var(--amber)" }])}</div></section>
-        <section class="card"><div class="card-h">Call disposition summary</div><div class="card-b">${App.bars(disp.map(d => ({ label: d.label, pct: 100 * d.n / dm, text: String(d.n), color: d.color })))}</div></section>
-        <section class="card"><div class="card-h">Recent follow ups</div><div class="card-b"><ul class="list-plain">${fups.map(l => `<li>${esc(l.customer)}<span class="sub">${l.mobile}</span><span style="margin-left:auto" class="sub">${App.fmtDate(l.dueDate)}</span></li>`).join("") || '<li class="note">None</li>'}</ul></div></section></div>` + App.actionsPanel();
-  };
-
-  /* ---------- OBSERVED 04: Customer Search / View 360 ---------- */
-  const chassis = reg => "MATXX" + reg.replace(/\D/g, "").padEnd(10, "0");
-  const searchCustomers = (by, q) => {
-    q = (q || "").trim().toLowerCase(); if (!q) return [];
-    const pick = r => by === "reg" ? r.reg : by === "name" ? r.customer : r.mobile;
-    const scope = r => App.inScope(r);
-    const appts = D.appointments.filter(a => scope(a) && pick(a).toLowerCase().includes(q)).map(a => ({ ...a, type: "Appointment" }));
-    const leads = D.leads.filter(l => scope(l) && !l.apptId && pick(l).toLowerCase().includes(q)).map(l => ({ ...l, type: "Outbound" }));
-    return [...appts, ...leads].slice(0, 30);
-  };
-  views.custSearch = tab => {
-    const f = S.filters, res = searchCustomers(f.by || "mobile", f.cq);
-    const example = D.appointments.find(a => App.inScope(a));
-    const cols = [{ h: "Customer Name", f: r => esc(r.customer) }, { h: "Mobile No.", f: r => r.mobile }, { h: "Registration No.", f: r => r.reg }, { h: "Chassis No", f: r => chassis(r.reg) },
-      { h: "Lead Type", f: r => App.chip(r.type, r.type === "Appointment" ? "blue" : "purple") }, { h: "Lead ID", f: r => `<u>${r.id}</u>` },
-      { h: "Action", f: r => App.can("view_360") ? `<button class="btn small" data-h="v360" data-mobile="${r.mobile}">View 360 →</button>` : "-" }];
-    return App.pageHead("Customer Search", tab) + App.scopeBanner({ crumbs: false, bd: false }) +
-      `<div class="filters" role="search"><label for="f-by">Search by<select id="f-by" data-hc="filter" data-f="by">${[["mobile", "Mobile No."], ["reg", "Reg No."], ["name", "Customer Name"]].map(([v, t]) => `<option value="${v}" ${(f.by || "mobile") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-        <label for="f-cq" class="grow">Search<input id="f-cq" value="${esc(f.cq || "")}" placeholder="e.g. ${example ? example.mobile : ""}" data-hc="filter" data-enter="filterEnter" data-f="cq"></label><button class="btn primary" data-h="search">Search</button></div>
-      <div class="list-meta">${f.cq ? `${res.length} Result${res.length === 1 ? "" : "s"} Found` : "Enter a mobile number, reg no. or name (placeholder data)."}</div>
-      ${f.cq ? table(cols, res, "Customer search results") : ""}` + App.actionsPanel();
-  };
-  H.v360 = t => {
-    const mob = t.dataset.mobile, appts = D.appointments.filter(a => a.mobile === mob), leads = D.leads.filter(l => l.mobile === mob), c = appts[0] || leads[0];
-    App.modal("Customer 360 · " + c.customer, `<p class="note">Read-only view. Placeholder data.</p>
-      <div class="form-grid"><div><b>Mobile</b><br>${c.mobile}</div><div><b>Reg No.</b><br>${c.reg}</div><div><b>Vehicle</b><br>${esc(c.ppl)} · ${esc(c.pl)} ${App.bdTag(c.bd)}</div><div><b>Dealer / Division</b><br>${c.dealer} / ${c.division}</div></div>
-      <h3 style="margin:8px 0 0;font-size:14px">Appointments</h3>${appts.map(a => `<div>${a.id} · ${App.fmtDate(a.date)} ${a.time} · ${a.channel} · ${App.statusChip(a.status)}</div>`).join("") || '<div class="note">None</div>'}
-      <h3 style="margin:8px 0 0;font-size:14px">Service due leads</h3>${leads.map(l => `<div>${l.id} · due ${App.fmtDate(l.dueDate)} · ${esc(l.assignedTo || "Unassigned")} · ${esc(l.outcome || l.callStatus)}</div>`).join("")}`);
-  };
-
-  /* ---------- OBSERVED 17: Workshop Configuration (Smart Slot) ---------- */
-  views.workshop = tab => {
-    const dealer = dealerOf(), q = (S.filters.wq || "").toLowerCase();
-    const rows = U[dealer].children.map(id => U[id]).filter(w => !q || w.id.toLowerCase().includes(q));
-    const can = App.can("config_slots");
-    const cols = [{ h: "Division", f: w => can ? `<button class="row-btn" data-h="slot" data-id="${w.id}">${w.id}</button>` : `<u>${w.id}</u>` },
-      { h: "Workshop Name", f: w => `Workshop ${w.id}` }, { h: "Dealer Code", f: () => dealer }, { h: "City", f: w => "City " + w.id.slice(-2) }, { h: "State", f: () => "State " + U[U[dealer].parent].parent },
-      { h: "Contact No.", f: w => "000-0000" + w.id.slice(1, 4) }, { h: "Status", f: w => App.chip(w.active ? "Active" : "Inactive", w.active ? "green" : "red") },
-      { h: "Smart Slot (slots / day)", num: 1, f: w => w.slotsPerDay }, { h: "Created On", f: () => "01-05-2026" }, { h: "Created By", f: () => "Admin " + dealer }];
-    return App.pageHead("Workshop Configuration", tab) + App.scopeBanner({ crumbs: false, bd: false }) +
-      `<div class="filters" role="search"><label for="f-wq" class="grow">Search here<input id="f-wq" value="${esc(S.filters.wq || "")}" placeholder="Search here" data-hc="filter" data-enter="filterEnter" data-f="wq"></label></div>
-      <div class="list-meta">Showing ${rows.length} of ${U[dealer].children.length} Results · select a Division to configure its Smart Slot</div>${table(cols, rows, "Workshop configuration")}
-      <p class="note">"Division" here is the observed label for a dealer workshop location. It is not the Business division (PV/EV).</p>` + App.actionsPanel();
-  };
-  H.slot = t => {
-    const w = U[t.dataset.id];
-    App.modal("Smart Slot · " + w.id, `<div class="form-grid"><label class="field" for="m-slots">Slots per day<input id="m-slots" type="number" min="0" max="80" value="${w.slotsPerDay}"></label>
-      <label class="field" for="m-act">Status<select id="m-act"><option value="1" ${w.active ? "selected" : ""}>Active</option><option value="0" ${w.active ? "" : "selected"}>Inactive</option></select></label></div>
-      <p class="note">Smart Slot capacity limits how many appointments CREs can book per day at this workshop.</p>`,
-      [{ label: "Cancel" }, { label: "Save", primary: true, onClick: r => { w.slotsPerDay = +r.querySelector("#m-slots").value; w.active = r.querySelector("#m-act").value === "1"; App.render(); App.toast(`Smart Slot saved for ${w.id}`); } }]);
-  };
-
-  /* ---------- OBSERVED 18 / 19: Employee Info (feature parameter) ---------- */
-  views.employee = tab => {
-    const dealer = dealerOf(), staff = dealerStaff(dealer), emp = staff.find(s => s.id === S.filters.emp) || staff[0];
-    const central = D.settings[dealer]?.centralCalling ?? true, can = App.can("config_central_calling");
-    const t2 = { ...tab, screen: emp.role === "CRE" ? 19 : 18 };
-    const fld = (l, v, req) => `<label class="field">${req ? '<span><span class="req">*</span> ' + l + "</span>" : l}<input value="${esc(v)}" readonly></label>`;
-    return App.pageHead("Employee Info", t2) + App.scopeBanner({ crumbs: false, bd: false }) +
-      `<div class="filters"><label for="f-emp">Employee<select id="f-emp" data-hc="filter" data-f="emp">${staff.map(s => `<option ${s.id === emp.id ? "selected" : ""}>${esc(s.id)}</option>`).join("")}</select></label>
-        <span class="note">Screen 18 shows Employee Role = CRM; screen 19 shows the same form with CRE.</span></div>
-      <section class="card"><div class="card-b"><div class="form-grid">${fld("Dealer", dealer, 1)}${fld("Division Name", U[dealer].children[0], 1)}${fld("Employee Name", emp.id, 1)}
-        ${fld("Employee No", "EMP-" + emp.id.replace(/\W/g, ""), 1)}${fld("Employee Type", "Permanent", 1)}${fld("Employee Role", emp.role, 1)}${fld("Contact No (Mob.)", "9876500000", 1)}
-        ${fld("Company E-Mail ID", "employee@example.com", 1)}${fld("Status", "Active")}${fld("Authentication", "Mobile")}</div></div></section>
-      <section class="card" style="margin-top:16px"><div class="card-h">Additional Feature Parameters</div><div class="card-b" style="padding:0">
-        ${table([{ h: "Feature", f: () => "Central Calling at dealer Level" },
-          { h: "Action", f: () => `<fieldset style="border:0;padding:0;margin:0"><legend class="sr-only">Central Calling at dealer Level</legend>
-            <label><input type="radio" name="cc" value="1" ${central ? "checked" : ""} ${can ? "" : "disabled"}> Yes</label> <label><input type="radio" name="cc" value="0" ${central ? "" : "checked"} ${can ? "" : "disabled"}> No</label></fieldset>` },
-          { h: "Dealer Code", f: () => dealer }, { h: "Status", f: () => "Active" }], [{}], "Additional feature parameters")}
-        <div style="padding:12px;display:flex;gap:8px;justify-content:flex-end"><button class="btn primary" data-h="saveCentral" ${can ? "" : "disabled"}>Save</button></div></div></section>` + App.actionsPanel();
-  };
-  H.saveCentral = () => { const v = document.querySelector('input[name="cc"]:checked').value === "1"; const d = dealerOf(); D.settings[d] = { centralCalling: v }; App.toast(`Central Calling at dealer Level set to ${v ? "Yes" : "No"} for ${d}`); };
 
   /* ---------- list handlers ---------- */
   H.page = t => { S.page = +t.dataset.p; App.render(); };
@@ -550,5 +393,6 @@
     }
   };
 
+  App.ui = { PAGE, OPEN, table, pager, pageRows, showing, sel, inp, filterBtns, dealerOf, dealerStaff, ownAppts, daysBetween, addDays, priority };
   App.modules.appointment = { label: "Appointment", tabs, views: Object.assign(views, { journey: App.views.journey, matrix: App.views.matrix }), doAction };
 })();

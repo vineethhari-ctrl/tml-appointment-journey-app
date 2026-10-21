@@ -1,6 +1,6 @@
 {
  "_meta": {
-  "version": "1.1",
+  "version": "1.2",
   "source": "input/Figma Screenshots.docx (20 screenshots, no text) + user answers of Phase A review",
   "basisValues": {
    "observed": "visible in the screenshots",
@@ -1790,7 +1790,7 @@
    "unit": "D001"
   },
   "WSA": {
-   "unit": "D001-W1"
+   "unit": "3002150-HideRoad"
   }
  },
  "escalation": {
@@ -1837,5 +1837,244 @@
    }
   ],
   "note": "A target set above dealer level is spread over the dealers in proportion to their current targets, so all levels stay consistent."
+ },
+ "sandbox": {
+  "basis": "user: data visible in the dealer screenshots is sandbox data, not production; kept as shown",
+  "header": {
+   "default": {
+    "user": "Username",
+    "sub": "Admin",
+    "initials": "U",
+    "badge": 4
+   },
+   "screens": {
+    "18": {
+     "user": "Shivkumar Krishnaswamy",
+     "sub": "Admin",
+     "initials": "JD",
+     "badge": 4
+    },
+    "19": {
+     "user": "Shivkumar Krishnaswamy",
+     "sub": "Admin",
+     "initials": "JD",
+     "badge": 4
+    },
+    "5": {
+     "user": "Shivkumar Krishnaswamy",
+     "sub": "Admin",
+     "initials": "JD",
+     "badge": 4
+    }
+   }
+  },
+  "workshops": [
+   {
+    "id": "3002150-HideRoad",
+    "name": "Tata Motors Hide Road Workshop",
+    "dealerCode": "3002150-LexusM",
+    "city": "Hide Road",
+    "state": "West Bengal",
+    "contact": "022-45678900",
+    "active": true,
+    "created": "01-06-2026",
+    "createdBy": "Amit Verma"
+   },
+   {
+    "id": "3002150-Barasat",
+    "name": "Tata Motors Barasat Workshop",
+    "dealerCode": "3002150-LexusM",
+    "city": "Barasat",
+    "state": "West Bengal",
+    "contact": "0251-2345678",
+    "active": true,
+    "created": "01-06-2026",
+    "createdBy": "Harsh Deshpande"
+   },
+   {
+    "id": "3002150-Kolkata",
+    "name": "Tata Motors Kolkata Workshop",
+    "dealerCode": "3002150-LexusM",
+    "city": "Kolkata",
+    "state": "West Bengal",
+    "contact": "0251-2876543",
+    "active": true,
+    "created": "01-06-2026",
+    "createdBy": "Pushkar Kushwah"
+   },
+   {
+    "id": "3002150-Nalmuri",
+    "name": "Tata Motors Nalmuri Workshop",
+    "dealerCode": "3002150-LexusM",
+    "city": "Nalmuri",
+    "state": "West Bengal",
+    "contact": "022-27778899",
+    "active": false,
+    "created": "01-06-2026",
+    "createdBy": "Abhinav Arora"
+   }
+  ],
+  "workshopDealer": "D001",
+  "employee": {
+   "dealer": "EMP001",
+   "divisionName": "CJ Darcel motors",
+   "employeeName": "Rajesh Kumar",
+   "employeeNo": "EMP001",
+   "employeeType": "Permanent",
+   "contact": "9876543210",
+   "doj": "15-06-2024",
+   "companyEmail": "employee@tatamotors.com",
+   "privateEmail": "rajesh.kumar@gmail.com",
+   "dob": "15-06-2024",
+   "gender": "Male",
+   "aadhar": "1234 5678 9012",
+   "pan": "ABCDE1234F",
+   "drivingLicense": "ABCDE1234F",
+   "experience": "5 Years",
+   "attendance": "Present",
+   "remarks": "",
+   "status": "Active",
+   "authentication": "Mobile",
+   "dol": "15-06-2024",
+   "featureDealerCode": "3004114",
+   "tabs": [
+    "Phone",
+    "User ID",
+    "Qualification",
+    "Address",
+    "Family",
+    "Experience",
+    "Training",
+    "Language",
+    "Additional Feature Parameters"
+   ]
+  },
+  "customerSearch": {
+   "query": "9876543210",
+   "rows": [
+    {
+     "customer": "Rahul Sharma",
+     "mobile": "9876543210",
+     "reg": "MH12AB0393",
+     "chassis": "MAT3403GALK122765",
+     "type": "Appointment",
+     "id": "APP-1234"
+    },
+    {
+     "customer": "Rahul Sharma",
+     "mobile": "9876543210",
+     "reg": "MH12AB0393",
+     "chassis": "MAT3403GALK122765",
+     "type": "Outbound",
+     "id": "OUB-1234"
+    },
+    {
+     "customer": "Rahul Sharma",
+     "mobile": "9876543210",
+     "reg": "MH12AB0393",
+     "chassis": "MAT3403GALK122765",
+     "type": "Inbound",
+     "id": "INB-1234"
+    }
+   ]
+  },
+  "otherLeadCards": [
+   {
+    "title": "PRODUCT LEADS",
+    "a": 85,
+    "u": 290
+   },
+   {
+    "title": "EXTERNAL LEADS",
+    "a": 85,
+    "u": 290
+   },
+   {
+    "title": "INBOUND LEADS",
+    "a": 85,
+    "u": 290
+   },
+   {
+    "title": "PSF LEADS",
+    "a": 277,
+    "u": 98
+   },
+   {
+    "title": "LAPSED LEADS",
+    "a": 85,
+    "u": 290
+   },
+   {
+    "title": "LOST LEADS",
+    "a": 85,
+    "u": 290
+   },
+   {
+    "title": "CLOSED/ INACTIVE",
+    "a": 85,
+    "u": 290
+   }
+  ],
+  "customers": [
+   "Rahul Sharma",
+   "Ashwin Mehta",
+   "Ram Sharma",
+   "Priyanka Singh",
+   "Prajwal Rana",
+   "Abhishek Siwach",
+   "Sargun Mehta",
+   "Aman Gupta",
+   "Karan Mehta",
+   "Sneha Iyer",
+   "Rohit Sharma",
+   "Meena Sharma",
+   "Ravi Kumar",
+   "Anjali Singh",
+   "Rakesh Joshi",
+   "Aarav Patel",
+   "Neha Verma",
+   "Vikram Das",
+   "Isha Nair",
+   "Manish Rao"
+  ],
+  "advisors": [
+   "Vikram Singh",
+   "Arun Pillai",
+   "Deepa Menon"
+  ],
+  "models": {
+   "PV": [
+    [
+     "Nexon",
+     "Creative AMT"
+    ],
+    [
+     "Harrier",
+     "Pure X"
+    ],
+    [
+     "Altroz",
+     "Smart Pure"
+    ],
+    [
+     "Punch",
+     "Adventure"
+    ]
+   ],
+   "EV": [
+    [
+     "Nexon EV",
+     "Creative 45"
+    ],
+    [
+     "Punch EV",
+     "Smart+"
+    ],
+    [
+     "Tiago EV",
+     "XE MR"
+    ]
+   ]
+  }
  }
 }
