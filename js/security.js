@@ -61,7 +61,7 @@
       [{ label: "Cancel" }, { label: "Dispatch escalation", primary: true, onClick: r => {
         const pr = r.querySelector("input[name=sg-sev]:checked").value, note = r.querySelector("#sg-note").value.trim() || "Please review.";
         if (cur) Object.assign(cur, { priority: pr, reason: note, status: "Dispatched to Dealer GM", by: S.role });
-        else D.sgEscalations.unshift({ id: "SGE-" + (D.sgEscalations.length + 1), visitId: v.id, dealer: v.dealer, reg: v.reg, model: v.model, priority: pr, reason: note, csm, status: "Dispatched to Dealer GM", when: today + " 12:00", by: S.role });
+        else D.sgEscalations.unshift({ id: window.TMLUID("SGE", D.sgEscalations.length + 1), visitId: v.id, dealer: v.dealer, reg: v.reg, model: v.model, priority: pr, reason: note, csm, status: "Dispatched to Dealer GM", when: today + " 12:00", by: S.role });
         S.escalations.push({ from: S.role, to: "Dealer GM", topic: "Gate delay " + v.reg });
         if (App.fu && !cur) App.fu.add({ module: "security_guard", kind: "escalate", visit: v.id, ref: v.id, dealer: v.dealer, division: v.division, bd: v.bd, reg: v.reg, priority: pr, due: today, note });
         App.render(); App.toast(`Escalation for ${v.reg} sent to the Dealer GM of ${dealerName(v.dealer)}`);

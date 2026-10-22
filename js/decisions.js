@@ -11,7 +11,7 @@
   const LIM = () => Object.assign({}, M.decisions.limits.claim_amount, S.limitOver || {});
   const money = n => "₹" + Number(n).toLocaleString("en-IN");
   const UP = { RCSM: "ZSM", ZSM: "RSM", RSM: "NSM", NSM: null };
-  const dec = (module, action, ref, rec, note, extra = "") => { LOG.unshift({ id: "DEC-" + (LOG.length + 1), module, action, ref, visit: rec.visit, dealer: rec.dealer, division: rec.division, bd: rec.bd, reg: rec.reg, by: S.role, at: D.now, note });
+  const dec = (module, action, ref, rec, note, extra = "") => { LOG.unshift({ id: window.TMLUID("DEC", LOG.length + 1), module, action, ref, visit: rec.visit, dealer: rec.dealer, division: rec.division, bd: rec.bd, reg: rec.reg, by: S.role, at: D.now, note });
     if (App.fu) App.fu.notify(rec, "decision", `${action} ${ref}${extra}${note ? ": " + note : ""}`); S.escalations.push({ from: S.role, to: "Dealer GM", topic: action + " " + ref }); };
   const can = id => App.can(id);
   App.dec = {

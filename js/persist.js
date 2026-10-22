@@ -11,11 +11,15 @@
   const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return h + ":" + s.length; };
   const store = (() => { try { const t = window.localStorage; t.getItem("x"); return t; } catch (e) { return null; } })();
   const base = {}; for (const k of KEYS) base[k] = hash(JSON.stringify(D[k] === undefined ? null : D[k]));
+  /* the generated records as they were before any saved work is restored: the shared database only receives records that differ */
+  window.TMLSYNC_ORIG = (() => { const o = {}; for (const [c, key] of [["followUps", "id"], ["claims", "id"], ["thdCases", "id"], ["exceptions", "id"], ["sgEscalations", "id"], ["outbox", "messageId"], ["decisions", "id"]]) { o[c] = {}; const norm = x => JSON.stringify(x, (k, v) => k === "_u" || v === null || v === undefined || (Array.isArray(v) && !v.length) ? undefined : v); for (const r of D[c] || []) o[c][r[key]] = norm(r); }
+    const norm2 = x => JSON.stringify(x, (k, v) => k === "_u" || v === null || v === undefined || (Array.isArray(v) && !v.length) ? undefined : v); o.targets = {}; for (const d of Object.keys(D.targets || {})) o.targets[d] = norm2(D.targets[d]); o.creTargets = {}; for (const k of Object.keys(D.creTargets || {})) o.creTargets[k] = norm2({ v: D.creTargets[k] }); return o; })();
   let restored = 0, ps = null, last = "", warned = false;
   if (store) { try { const snap = JSON.parse(store.getItem(SK) || "null");
     if (snap && snap.vals) { for (const k of KEYS) if (snap.vals[k] !== undefined && snap.base[k] === base[k]) { D[k] = snap.vals[k]; restored++; }
       if (snap.watch && snap.watch.length) { D.watchIds = snap.watch; restored++; } ps = snap.s || null; last = store.getItem(SK); } } catch (e) { /* unreadable: start clean */ } }
   window.TMLP = {
+    orig: () => window.TMLSYNC_ORIG,
     restored: () => restored,
     attach: App => { const S = App.state;
       if (ps) { if (ps.escalations) S.escalations = ps.escalations; if (ps.permOver) S.permOver = ps.permOver; if (ps.limitOver) S.limitOver = ps.limitOver; }
@@ -28,7 +32,7 @@
         } catch (e) { if (!warned) { warned = true; App.toast("Could not save your work in this browser (storage full or blocked)"); } } };
       setInterval(save, 1500); window.addEventListener("pagehide", save); window.addEventListener("beforeunload", save);
       App.persist = { save, reset: () => { try { store && store.removeItem(SK); } catch (e) { /* ignore */ } last = ""; window.removeEventListener("beforeunload", save); window.removeEventListener("pagehide", save); location.reload(); }, available: !!store };
-      const btn = document.getElementById("reset-demo"); if (btn) btn.addEventListener("click", () => { if (confirm("Reset demo data? Everything you added or changed in this browser (follow-ups, comments, decisions, watchlist, escalations, targets) is removed and the demo starts again.")) App.persist.reset(); });
+      const btn = document.getElementById("reset-demo"); if (btn) btn.addEventListener("click", () => { { const shared = App.sync ? ` The shared records of room ${App.sync.room} are deleted for everyone.` : ""; if (confirm("Reset demo data? Everything you added or changed in this browser (follow-ups, comments, decisions, watchlist, escalations, targets) is removed and the demo starts again." + shared)) (App.sync ? App.sync.resetAll().catch(() => {}) : Promise.resolve()).then(() => App.persist.reset()); } });
       if (restored) setTimeout(() => App.toast("Your earlier work in this browser was restored. Use Reset demo data (bottom left) to start again."), 700);
       if (!store) setTimeout(() => App.toast("This browser blocks local storage: your work will not be kept after a reload"), 700); }
   };

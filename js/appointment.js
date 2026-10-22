@@ -375,7 +375,7 @@
       [{ label: "Cancel" }, { label: "Send", primary: true, onClick: r => {
         const ty = r.querySelector("#m-ty").value, note = r.querySelector("#m-note").value;
         if (isDgm && ty.endsWith("request")) {
-          const id = "EXC-" + String(D.exceptions.length + 1).padStart(3, "0"), d = dealerOf(), n = +r.querySelector("#m-n").value;
+          const id = window.TMLUID("EXC", String(D.exceptions.length + 1).padStart(3, "0")), d = dealerOf(), n = +r.querySelector("#m-n").value;
           D.exceptions.push(ty.startsWith("Dealer") ? { id, type: ty, area, from: d, to: r.querySelector("#m-to").value, count: n, status: "Pending", raisedBy: "Dealer GM " + d, reason: note }
             : { id, type: ty, area, dealer: d, bd: "PV", from: D.targets[d].PV, to: n, status: "Pending", raisedBy: "Dealer GM " + d, reason: note });
           S.escalations.push({ from: S.role, to: "RCSM", topic: ty }); App.render(); App.toast(`${id} sent to RCSM for approval`); return;

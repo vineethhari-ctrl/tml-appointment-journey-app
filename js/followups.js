@@ -11,7 +11,7 @@
   const OUT = D.outbox = D.outbox || [];   // messages sent from TML to the dealer application (simulated delivery)
   const thread = f => f.thread || (f.thread = [{ side: "tml", by: f.raisedBy, at: f.raised, text: (kindOf(f.kind) ? kindOf(f.kind).label : f.kind) + (f.note ? ": " + f.note : "") },
     ...(f.response ? [{ side: "dealer", by: "Dealer GM", at: f.raised, text: f.response }] : [])]);
-  const send = (f, type, text) => { const v = findV(f.visit); OUT.unshift({ messageId: "MSG-" + (OUT.length + 1), followUpId: f.id, type, dealerCode: f.dealer, dealer: dname(f.dealer), to: "Dealer GM", from: S.role, text, priority: f.priority, dueDate: f.due,
+  const send = (f, type, text) => { const v = findV(f.visit); OUT.unshift({ messageId: window.TMLUID("MSG", OUT.length + 1), followUpId: f.id, type, dealerCode: f.dealer, dealer: dname(f.dealer), to: "Dealer GM", from: S.role, text, priority: f.priority, dueDate: f.due,
     vehicle: { reg: f.reg, vin: v ? v.vin : "", jc: v && v.jc ? v.jc.id : "" }, sentAt: D.now, status: "Delivered to the dealer application (simulated)" }); };
   const RANK = { NSM: 0, RSM: 1, ZSM: 2, RCSM: 3 };
   const inS = (r, unit = S.unit) => App.inScope({ dealer: r.dealer }, unit) && (S.bd === "All" || r.bd === S.bd);
@@ -24,14 +24,14 @@
   const canClose = f => App.can("close_follow_up") && RANK[S.role] !== undefined && RANK[S.role] <= (RANK[f.raisedBy] ?? 3);
   const stChip = f => overdue(f) ? App.chip("Overdue", "red") : App.chip(f.status, { Open: "amber", Responded: "blue", Closed: "green" }[f.status]);
 
-  const notify = (rec, type, text) => { const v = findV(rec.visit); OUT.unshift({ messageId: "MSG-" + (OUT.length + 1), followUpId: rec.id || "", type, dealerCode: rec.dealer, dealer: dname(rec.dealer), to: "Dealer GM", from: S.role, text, priority: "", dueDate: "", vehicle: { reg: rec.reg, vin: v ? v.vin : "", jc: v && v.jc ? v.jc.id : "" }, sentAt: D.now, status: "Delivered to the dealer application (simulated)" }); };
+  const notify = (rec, type, text) => { const v = findV(rec.visit); OUT.unshift({ messageId: window.TMLUID("MSG", OUT.length + 1), followUpId: rec.id || "", type, dealerCode: rec.dealer, dealer: dname(rec.dealer), to: "Dealer GM", from: S.role, text, priority: "", dueDate: "", vehicle: { reg: rec.reg, vin: v ? v.vin : "", jc: v && v.jc ? v.jc.id : "" }, sentAt: D.now, status: "Delivered to the dealer application (simulated)" }); };
   App.fu = {
     notify,
     /* "Take action" button for a record: ctx = { module, visit | jc, ref } */
     btn: ({ module, visit, jc, ref }) => { const vid = visit || visitOfJc(jc); if (!vid || !App.can("follow_up")) return "";
       const open = LIST.filter(f => f.visit === vid && f.ref === ref && f.status !== "Closed").length;
       return `<button class="btn small" data-h="fuNew" data-m="${esc(module || "")}" data-id="${esc(vid)}" data-ref="${esc(ref || "")}">Take action${open ? ` <span class="chip amber">${open} open</span>` : ""}</button>`; },
-    add: f => { const x = { id: "FU-" + (3001 + LIST.length), status: "Open", response: "", outcome: "", raised: D.now, raisedBy: S.role, ...f }; LIST.unshift(x); thread(x); send(x, "follow_up", thread(x)[0].text); },
+    add: f => { const x = { id: window.TMLUID("FU", 3001 + LIST.length), status: "Open", response: "", outcome: "", raised: D.now, raisedBy: S.role, ...f }; LIST.unshift(x); thread(x); send(x, "follow_up", thread(x)[0].text); },
     /* card on the vehicle page */
     card: vid => { const L = LIST.filter(f => f.visit === vid), v = findV(vid), w = WATCH.has(vid);
       const watchBtn = App.can("watch_vehicle") ? `<button class="btn small" data-h="fuWatch" data-id="${esc(vid)}" aria-pressed="${w}">${w ? "★ On watchlist" : "☆ Add to watchlist"}</button>` : "";

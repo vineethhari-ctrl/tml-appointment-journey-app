@@ -25,6 +25,8 @@
 
   <script src="data/model.js"></script>
   <script src="data/data.js"></script>
+  <script src="data/sync_config.js"></script>
+  <script src="js/sync.js"></script>
   <script src="js/persist.js"></script>
   <script src="js/core.js"></script>
   <script src="js/appointment.js"></script>
@@ -42,6 +44,7 @@
   <script src="js/reports.js"></script>
   <script src="js/vehicle_timeline.js"></script>
   <button id="reset-demo" class="btn small" style="position:fixed;left:8px;bottom:8px;z-index:30;opacity:.85" title="Clears what you added or changed in this browser">Reset demo data</button>
-  <script>TMLP.attach(App); App.start();</script>
+  <span id="sync-badge" class="sync-badge" hidden></span>
+  <script>TMLSYNC.orig = window.TMLSYNC_ORIG; TMLP.attach(App); App.start(); TMLSYNC.start(App);</script>
 </body>
 </html>

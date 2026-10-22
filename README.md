@@ -7,3 +7,4 @@ Clickable demo of the **TML journey**: one app that links the dealership modules
 - Everything marked **Proposed** is a design proposal for review, not a confirmed TML rule or an existing screen: follow-up types, who holds each decision, limits, thresholds, needs-attention rules.
 - Messages to the dealer application are simulated.
 - Your work (follow-ups, comments, decisions, watchlist) is saved in your own browser and survives a reload; use "Reset demo data" (bottom left) to start again. It is not shared between people.
+- Shared records for all reviewers are built in but off until a free Firebase Realtime Database address is put in `data/sync_config.js` (steps in the project brief).

@@ -547,3 +547,6 @@ ol.vj li.on { color: var(--text); } ol.vj li.on::before { background: var(--gree
   .rp-wide ~ .table-wrap td.num::before { content: "Rows: "; color: var(--muted); }
   .rp-wide ~ .table-wrap td .btn { margin-top: 6px; }
 }
+.sync-badge { position: fixed; left: 142px; bottom: 11px; z-index: 30; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: #fff; }
+.sync-badge.ok { color: #0b6b2e; border-color: #bfe0c8; background: #e8f5ec; } .sync-badge.bad { color: #8a5a00; border-color: #f0d9a8; background: #fff6e0; }
+@media (max-width: 860px) { .sync-badge { position: static; display: block; margin: 0 16px 22px; width: fit-content; } .sync-badge[hidden] { display: none; } }
