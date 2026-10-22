@@ -154,7 +154,7 @@
       <h3 style="margin:8px 0 0;font-size:14px">Service due leads</h3>${leads.map(l => `<div>${l.id} · due ${App.fmtDate(l.dueDate)} · ${esc(l.assignedTo || "Unassigned")} · ${esc(l.outcome || l.callStatus)}</div>`).join("") || '<div class="note">None</div>'}`);
   };
   H.gsearch = t => { const q = (document.getElementById("gsearch") || {}).value || ""; if (!q.trim()) return App.toast("Type a vehicle no., VIN, mobile no. or customer name");
-    if (App.mod().tabs(S.role).some(x => x.id === "tracker")) return App.go("tracker", { q: q.trim() });   // TML: find the vehicle in the service cycle
+    if (App.mod().tabs(S.role).some(x => x.id === "cust360")) return App.go("cust360", { q: q.trim(), auto: "1" });   // TML: any customer or vehicle (not only those in service); one match opens its 360
     const by = /^\d{10}$/.test(q.trim()) ? "mobile" : /^[A-Za-z]{2}\d/.test(q.trim()) ? "reg" : "name"; App.go("search", { by, cq: q.trim() }); };
 
   /* ---------- OBSERVED 17: Workshop Configuration (Smart Slot) ---------- */
@@ -331,7 +331,7 @@
       ${breakdown}
       <div class="filters" role="search">${inp("f-q", "Search name, mobile, reg no.", f.q)}${sel("f-status", "Status", [["unassigned", "Unassigned"], ...M.productLeads.statuses.filter(x => x.id !== "unassigned").map(x => [x.id, x.label])], f.status)}
         ${sel("f-ppl", "PPL", [...new Set(D.productLeads.map(l => l.ppl))], f.ppl)}<span class="grow"></span>${filterBtns()}</div>
-      <div class="list-meta">${showing(rows.length)}<span class="right">${App.can("export") ? `<button class="btn" data-act="export">⬇ Export CSV</button>` : ""}</span></div>
+      <div class="list-meta">${showing(rows.length)}<span class="right">${App.can("export") ? `<button class="btn" data-act="export">⬇ Export all ${rows.length} rows (CSV)</button>` : ""}</span></div>
       ${table(cols, pageRows(rows), "Product leads")}${pager(rows.length)}` + App.actionsPanel();
   };
 })();

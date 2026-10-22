@@ -21,7 +21,7 @@
   const kidRows = () => { const u = U[S.unit]; return u.children.length ? u.children : [S.unit]; };
   const canDrill = () => U[S.unit].children.length && App.can("drill_down");
   const nameCell = id => canDrill() ? `<button class="row-btn" data-unit="${id}">${esc(dname(id))}</button>` : esc(dname(id));
-  const csvBtn = (key, label = "Export CSV") => App.can("export") ? `<button class="btn" data-h="tmlcsv" data-k="${key}">⬇ ${label}</button>` : "";
+  const csvBtn = (key, label) => { const n = csvStore[key] && csvStore[key].rows.length; return App.can("export") ? `<button class="btn" data-h="tmlcsv" data-k="${key}">⬇ ${label || (n != null ? `Export all ${n} rows on this list (CSV)` : "Export this list (CSV)")}</button>` : ""; };
   const barRows = (rows, color, w = "170px 1fr 70px") => { const mx = Math.max(1, ...rows.map(r => r[1])); const tot = rows.reduce((s, r) => s + r[1], 0);
     return rows.length ? `<div class="bars">${rows.map(([l, n]) => `<div class="bar-row" style="grid-template-columns:${w}"><span>${esc(l)}</span><span class="bar" role="img" aria-label="${esc(l)} ${n}"><i style="width:${100 * n / mx}%;background:${color}"></i></span><span class="v">${n} <small class="note">${App.pct(n, tot)}%</small></span></div>`).join("")}</div>` : '<p class="note">None in this scope.</p>'; };
   const countBy = (list, f) => { const o = {}; list.forEach(x => { const k = f(x); o[k] = (o[k] || 0) + 1; }); return Object.entries(o).sort((a, b) => b[1] - a[1]); };
@@ -282,9 +282,11 @@
     for (const a of D.appointments) { const c = get(a.mobile, a.customer, a.reg); const r = c.regs.get(a.reg); if (r && !r.model) r.model = a.ppl + " " + a.pl; add(c, a.dealer, a.date, "Appointment", `${a.id} · ${a.serviceType} · ${a.time} · ${a.channel}`, a.status); if (a.visitId) byVisit[a.visitId] = c; }
     for (const p of D.pickups) { const c = get(p.mobile, p.customer, p.reg); const r = c.regs.get(p.reg); if (r) { r.model = r.model || p.model; r.vin = r.vin || p.vin; } add(c, p.dealer, p.date, "Pickup & Drop", `${p.id} · pickup ${p.pickupStatus}, drop ${p.dropStatus}`, App.tripBucket(p)); if (p.visitId) byVisit[p.visitId] = c; }
     for (const l of D.productLeads) { const c = get(l.mobile, l.customer, l.reg); add(c, l.dealer, D.today, "Product lead", `${l.id} · ${["ew", "amc", "rsa", "tmi"].filter(k => l[k]).map(k => k.toUpperCase()).join(", ") || "–"} · ${l.status}`, l.status); }
+    const thdBy = {}; for (const th of D.thdCases) (thdBy[th.visit] = thdBy[th.visit] || []).push(th);
     for (const v of D.visits) { const c = byVisit[v.id] || get(null, v.customer, v.reg); const r = c.regs.get(v.reg) || (c.regs.set(v.reg, { reg: v.reg, model: v.model, vin: v.vin }), c.regs.get(v.reg)); r.model = r.model || v.model; r.vin = v.vin; r.visits = (r.visits || 0) + 1; r.latest = !r.latest || v.date >= r.latest.date ? v : r.latest;
       add(c, v.dealer, v.date, "Gate in", `${v.id} · ${v.source} · ${v.entryMode}`, "visit", { v });
       if (v.jc) add(c, v.dealer, v.date, "Job card", `${v.jc.id} · ${v.jc.type} · ${App.jcui.STAGE[v.jc.stage]}${v.jc.bay ? " · " + v.jc.bay : ""}`, v.jc.status, { v });
+      for (const th of thdBy[v.id] || []) add(c, v.dealer, th.raised.slice(0, 10), "Technical helpdesk", `${th.id} · ${th.status === "open" ? "with " + th.team : "closed" + (th.closedWith ? " (" + th.closedWith + ")" : "")}`, th.status === "open" ? "amber" : "green", { v });
       for (const cl of (App.claimsOfVisit ? App.claimsOfVisit(v.id) : [])) add(c, v.dealer, cl.created.slice(0, 10), "Service claim", `${cl.id} · ${cl.type} · ${cl.status}, ${cl.age} days`, cl.status === "Rejected" ? "red" : "blue", { v });
       if (v.delivered) add(c, v.dealer, v.outDate, "Delivered", `${v.id} · gate out`, "delivered"); }
     for (const c of m.values()) c.ev.sort((x, y) => y.date.localeCompare(x.date));
@@ -298,6 +300,8 @@
   const custState = c => { const live = [...c.regs.values()].filter(r => r.latest && !r.latest.delivered); return live.length ? live.length : 0; };
   views.cust360 = tab => {
     const f = S.filters, all = custRows(), c0 = f.cid && all.find(c => c.key === f.cid);
+    const mq = App.norm(f.q || ""), matches = c => !mq || App.norm(c.name + c.mobile + [...c.regs.values()].map(r => r.reg + r.vin).join("")).includes(mq);
+    if (f.auto && f.q && !f.cid) { const hit = all.filter(matches); S.filters = { ...f, auto: "" }; if (hit.length === 1) { S.filters.cid = hit[0].key; return views.cust360(tab); } }
     if (c0) {
       const evs = c0.ev.filter(e => App.inScope({ dealer: e.dealer })), CHIP = { reported: "green", booked: "blue", confirmed: "blue", no_show: "red", cancelled: "grey", rescheduled: "amber", completed: "green", progress: "blue", delayed: "amber", unassigned: "red", delivered: "green", visit: "blue", closed: "green", open: "blue", unassigned_: "red" };
       const label = x => ({ reported: "Reported", booked: "Booked", confirmed: "Confirmed", no_show: "No Show", cancelled: "Cancelled", rescheduled: "Rescheduled", completed: "Completed", progress: "In progress", delayed: "Delayed", unassigned: "Unassigned", visit: "At the dealership", closed: "Closed", open: "Open", delivered: "Delivered" })[x] || x;
@@ -307,15 +311,16 @@
         <section class="card" style="margin-top:14px"><div class="card-h">VEHICLES</div><div class="card-b" style="padding:0">${table([{ h: "Registration", f: r => `<b>${esc(reg(r.reg))}</b>` }, { h: "Model", f: r => esc(r.model || "–") }, { h: "VIN", f: r => esc(r.vin || "–") }, { h: "Visits", num: 1, f: r => r.visits || 0 }, { h: "Where it is now", f: live },
           { h: "", f: r => r.latest ? `<button class="btn small" data-h="tmlveh" data-id="${r.latest.id}">Vehicle page</button>` : "" }], [...c0.regs.values()], "Vehicles of the customer")}</div></section>
         <section class="card" style="margin-top:14px"><div class="card-h">HISTORY <span class="link note">${evs.length} events, newest first</span></div><div class="card-b" style="padding:0">${table([{ h: "Date", f: e => dmy(e.date) }, { h: "Module", f: e => e.kind }, { h: "Detail", f: e => esc(e.text) }, { h: "Status", f: e => e.chip === "visit" ? "–" : App.chip(label(e.chip), CHIP[e.chip] || "grey") }, { h: "Dealership", f: e => esc(dname(e.dealer)) }], evs, "History of the customer")}</div></section>
-        <p class="note">Read-only. Built from the linked appointment, pickup and drop, gate, job card and product lead records. Feedback, helpdesk and claims are not included until those screens are shared.</p>` + App.actionsPanel();
+        <p class="note">Read-only. Built from the linked appointment, pickup and drop, gate, job card and product lead records. Product leads, claims and helpdesk cases are included; ratings and feedback are not (no screens).</p>` + App.actionsPanel();
     }
-    const q = App.norm(f.q || ""), rows = all.filter(c => !q || App.norm(c.name + c.mobile + [...c.regs.values()].map(r => r.reg + r.vin).join("")).includes(q))
+    const q = mq, rows = all.filter(matches)
       .sort((x, y) => (y.ev[0] ? y.ev[0].date : "").localeCompare(x.ev[0] ? x.ev[0].date : "") || x.name.localeCompare(y.name));
     const inSvcN = all.filter(c => custState(c)).length, rep = all.filter(c => [...c.regs.values()].reduce((s, r) => s + (r.visits || 0), 0) > 1).length;
     return head("CUSTOMER 360", tab, "Find any customer in your scope by name, mobile number, registration or VIN, and see their vehicles and the full history across appointments, pickup and drop, gate, job cards and product leads. Typing spaces or dashes in a registration number is fine.") +
       `<div class="grid g4">${App.stat("🧑", all.length, "Customers in scope")}${App.stat("🚘", inSvcN, "With a vehicle in service now", "var(--blue)")}${App.stat("🔁", rep, "With more than one visit", "var(--amber-t)")}${App.stat("🛒", all.filter(c => c.ev.some(e => e.kind === "Product lead")).length, "With a product lead", "var(--green)")}</div>
       <div class="filters" role="search" style="margin-top:14px">${inp("f-q", "Search name, mobile, reg no. or VIN", f.q)}<span class="grow"></span>${filterBtns()}</div>
       <div class="list-meta">${showing(rows.length)}</div>
+      ${q && !rows.length ? `<section class="card" role="status"><div class="card-b"><b>No customer or vehicle matches “${esc(f.q)}” in ${esc(U[S.unit].name)}.</b><p class="note" style="margin:6px 0 0">Searched name, mobile, registration number and VIN across appointments, pickup and drop, gate, job cards, claims and helpdesk. Your scope is ${esc(U[S.unit].name)}${S.bd !== "All" ? " and " + S.bd + " only" : ""}: a vehicle of another region or zone is not visible here; go back up in the scope bar or switch to All.</p></div></section>` : ""}
       ${table([{ h: "Customer", f: c => `<b>${esc(c.name)}</b>` }, { h: "Mobile", f: c => esc(c.mobile) }, { h: "Vehicles", f: c => [...c.regs.values()].map(r => esc(reg(r.reg))).join(", ") }, { h: "Dealerships", f: c => [...c.dealers].filter(d => App.inScope({ dealer: d })).slice(0, 2).map(d => esc(dname(d))).join(", ") },
         { h: "Last activity", f: c => c.ev[0] ? dmy(c.ev[0].date) + " · " + c.ev[0].kind : "–" }, { h: "In service", f: c => custState(c) ? App.chip("Yes", "blue") : "–" }, { h: "", f: c => `<button class="btn small primary" data-h="tmlcust" data-cid="${c.key}">Open 360</button>` }], pageRows(rows), "Customers")}${pager(rows.length)}` + App.actionsPanel();
   };

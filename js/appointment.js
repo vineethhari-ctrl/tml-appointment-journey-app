@@ -23,7 +23,7 @@
       case "NSM": case "RSM": case "ZSM": case "RCSM": {
         const g = (group, ...ts) => ts.map(t => ({ ...t, group })), P = (id, label, view, scr, sub) => T(id, label, view, "proposed", scr, sub || scr);
         return [
-          ...g("Overview", P("overview", role === "RCSM" ? "Area Appointment Control" : "Appointment Overview", "overview", p.id), P("tower", "Control Tower", "tower", "P6", "P6 · all modules"), P("modules", "Modules", "modules", "P7", "P7 · KPIs by module"), P("followups", "Actions & Follow-ups", "followups", "P28", "P28 · what TML asked, due date, outcome")),
+          ...g("Overview", P("overview", role === "RCSM" ? "Area Appointment Control" : "Appointment Overview", "overview", p.id), P("tower", "Control Tower", "tower", "P6", "P6 · all modules"), P("modules", "Modules", "modules", "P7", "P7 · KPIs by module"), P("followups", "Actions & Follow-ups", "followups", "P28", "P28 · what TML asked, due date, outcome"), P("reports", "Reports & Trends", "reports", "P29", "P29 · trends by day, reports to download")),
           ...g("Appointment", P("list", "Appointment List", "list", p.id, "drill-down list"), P("conv", "Appointment → Job Card", "conv", "P10", "P10 · conversion and reasons"), P("prodtml", "Product Leads", "prodtml", "P9", "P9 · EW, AMC, RSA, TMI"), P("calling", "Calling Performance", "calling", "P26", "P26 · leads, calls, contact rate"),
             ...(role === "RCSM" ? [P("exceptions", "Exceptions & Reassignment", "exceptions", "P4", "P4 · approvals")] : [])),
           ...g("Customers", P("cust360", "Customer 360", "cust360", "P24", "P24 · history across modules")),
@@ -157,7 +157,7 @@
       `<div class="filters" role="search">${inp("f-q", "Search name, mobile, reg no., lead ID", S.filters.q)}
         ${sel("f-status", "Status", M.appointmentStatuses.map(s => [s.id, s.label]), S.filters.status)}
         ${sel("f-channel", "Channel", ["IRA", "Inbound Call", "Follow-Up"], S.filters.channel)}<span class="grow"></span>${filterBtns()}</div>
-      <div class="list-meta">${showing(rows.length)}<span class="right">${App.can("export") ? `<button class="btn" data-act="export">⬇ Export CSV</button>` : ""}</span></div>
+      <div class="list-meta">${showing(rows.length)}<span class="right">${App.can("export") ? `<button class="btn" data-act="export">⬇ Export all ${rows.length} appointments (CSV)</button>` : ""}</span></div>
       ${table(cols, pageRows(rows), "Appointments")}${pager(rows.length)}` + App.actionsPanel();
   };
 
@@ -401,7 +401,7 @@
   const firstTab = () => tabs(S.role)[0].id;
   const hasTab = id => tabs(S.role).some(t => t.id === id);
   /* TML actions act on the screen you are on: each screen belongs to a module, and the action panel works on that module */
-  const MOD_OF = { overview: "appointment", list: "appointment", conv: "appointment", prodtml: "appointment", calling: "appointment", exceptions: "appointment", tower: "cross", modules: "cross", followups: "cross", tracker: "cross", cust360: "customer", pdtml: "pickup_drop", sgdash: "security_guard", sgreg: "security_guard", capacity: "jc", jc_all: "jc", jc_body: "jc", eqc: "eqc", thd: "thd", spd: "spd", claims: "claims" };
+  const MOD_OF = { overview: "appointment", list: "appointment", conv: "appointment", prodtml: "appointment", calling: "appointment", exceptions: "appointment", tower: "cross", modules: "cross", followups: "cross", reports: "cross", tracker: "cross", cust360: "customer", pdtml: "pickup_drop", sgdash: "security_guard", sgreg: "security_guard", capacity: "jc", jc_all: "jc", jc_body: "jc", eqc: "eqc", thd: "thd", spd: "spd", claims: "claims" };
   const TILE_OF = { appointment: "appointment_reminder", cross: "jc_tracking", customer: "customer_journey", pickup_drop: "pickup_drop", security_guard: "security_guard", jc: "jc_tracking", eqc: "eqc_washing", thd: "thd", spd: "spd", claims: "auth_claims" };
   const LIST_OF = { appointment: "list", cross: "tracker", customer: "cust360", pickup_drop: "pdtml", security_guard: "sgreg", jc: "jc_all", eqc: "eqc", thd: "thd", spd: "spd", claims: "claims" };
   const tableCsv = () => { const t = document.querySelector("#main table"); if (!t) return App.toast("No table on this screen to export"); const rows = [...t.querySelectorAll("tr")].map(r => [...r.children].map(c => `"${c.textContent.replace(/\s+/g, " ").trim().replace(/"/g, '""')}"`).join(","));
@@ -410,24 +410,24 @@
     App.modal("Choose the vehicle", `<label class="field" for="pv-v">Vehicle (in your scope, job card open)<select id="pv-v">${vs.map(v => `<option value="${v.id}">${esc(v.reg)} · ${esc(v.model)} · ${esc(v.jc.id)}</option>`).join("")}</select></label><p class="note">Or open a vehicle from the Vehicle Journey Tracker.</p>`,
       [{ label: "Cancel" }, { label: "Continue", primary: true, onClick: r => { const id = r.querySelector("#pv-v").value; setTimeout(() => fn(id), 0); } }]); };
   const TML_DO = new Set(["view_kpis", "view_reports", "view_list", "drill_down", "filter_search", "view_360", "export", "escalate", "follow_up", "watch_vehicle", "close_follow_up", "comment_follow_up", "claim_accept", "claim_reject", "thd_refer"]);
-  const doTml = (id) => { const mod = MOD_OF[S.tab] || "cross", vid = S.tab === "tracker" && S.filters.vid, H0 = App.handlers, fake = (o) => H0[o.h]({ dataset: o.d, checked: true });
+  const doTml = (id, el) => { const mod = MOD_OF[S.tab] || "cross", vid = S.tab === "tracker" && S.filters.vid, H0 = App.handlers, fake = (o) => H0[o.h]({ dataset: o.d, checked: true });
     switch (id) {
       case "view_kpis": return App.go("modules", { mod: TILE_OF[mod] });
-      case "view_reports": return App.go("tower");
-      case "view_list": { const t = document.querySelector("#main .table-wrap"); if (t) { t.scrollIntoView({ block: "start" }); return App.toast("List on this screen"); } return App.go(LIST_OF[mod]); }
+      case "view_reports": return App.go("reports");
+      case "view_list": return App.reports.listChooser();
       case "drill_down": { const b = document.querySelector("#main [data-unit]"); if (b) { b.scrollIntoView({ block: "center" }); b.focus(); return App.toast("Select a name in the breakdown table to drill down"); } return App.go("modules", { mod: TILE_OF[mod] }); }
       case "filter_search": { const f = document.querySelector("#main [data-f]"); if (f) { f.focus(); return App.toast("Type in the search box on this screen, then Search"); } const g = document.getElementById("gsearch"); g && g.focus(); return App.toast("Type a vehicle number, VIN, mobile or customer name"); }
       case "view_360": return App.go("cust360");
-      case "export": { const b = document.querySelector('#main [data-h="tmlcsv"]'); if (b) return b.click(); return mod === "appointment" ? exportCsv() : tableCsv(); }
+      case "export": if (el && el.closest("#main .list-meta")) return exportCsv(); return App.reports.exportChooser(mod);
       case "escalate": return vid ? fake({ h: "fuNew", d: { m: "", id: vid, ref: "" } }) : escalateModal(mod);
       case "follow_up": return vid ? fake({ h: "fuNew", d: { m: "", id: vid, ref: "" } }) : pickVehicle(v => fake({ h: "fuNew", d: { m: "", id: v, ref: "" } }));
-      case "watch_vehicle": return vid ? fake({ h: "fuWatch", d: { id: vid } }) : App.go("followups", { sec: "watch" });
+      case "watch_vehicle": if (vid) return fake({ h: "fuWatch", d: { id: vid } }); App.go("followups", { sec: "watch" }); return App.toast("Find a vehicle below and add it to the watchlist");
       case "close_follow_up": case "comment_follow_up": return App.go("followups", { sec: "responded" });
       case "claim_accept": case "claim_reject": App.go("claims", { sec: "all", st: "Submitted" }); return App.toast("Submitted claims shown: use Accept or Reject on a row");
       case "thd_refer": return App.go("thd");
     }
   };
-  const HERE = { view_tower: "You are on the Control Tower", view_reports: "Reports and trends are on this Control Tower screen", view_360: "Customer 360: search a customer or vehicle above, or open one from a list", view_list: "The list is this screen: use the buckets and filters above", thd_refer: "Use Refer on an open case in the list", approve_exception: "The exceptions to approve are on this screen" };
+  const HERE = { view_tower: "You are on the Control Tower", view_reports: "Reports and trends are on this screen", view_360: "Customer 360: search a customer or vehicle above, or open one from a list", view_list: "The list is this screen: use the buckets and filters above", thd_refer: "Use Refer on an open case in the list", approve_exception: "The exceptions to approve are on this screen" };
   const doAction = (id, el) => {
     const tab0 = S.tab; const r = doAction0(id, el);
     setTimeout(() => { const t = document.getElementById("toast"); if (S.tab === tab0 && !document.querySelector(".modal") && t && t.hidden) App.toast(HERE[id] || "Done on this screen"); }, 0);
@@ -435,7 +435,7 @@
   };
   const doAction0 = (id, el) => {
     if (!App.can(id)) return App.toast(App.perm(S.role, id).deny || App.READONLY);
-    if (App.role(S.role).appUser && !S.ref && TML_DO.has(id)) return doTml(id);
+    if (App.role(S.role).appUser && !S.ref && TML_DO.has(id)) return doTml(id, el);
     switch (id) {
       case "view_tower": return App.go("tower");
       case "assign_driver": case "request_live_location": return App.go("pd_avail");

@@ -1187,7 +1187,7 @@
   },
   {
    "id": "view_reports",
-   "label": "View reports and trends",
+   "label": "View reports and trends (by day, every module)",
    "basis": "user",
    "screens": [
     20
@@ -1236,7 +1236,7 @@
   },
   {
    "id": "export",
-   "label": "Export",
+   "label": "Export a report to CSV (all rows in your scope)",
    "basis": "user",
    "screens": []
   },
@@ -3991,6 +3991,20 @@
     "label": "Proposed",
     "tab": "followups",
     "note": "Every TML follow-up and escalation on a vehicle in one ledger: what was asked, of which Dealer GM, by which TML position, the due date, the dealer's response and the outcome; open, overdue, responded and closed by dealership with a roll-up check; the watchlist of vehicles; the action rights of each position"
+   },
+   {
+    "id": "P29",
+    "title": "REPORTS & TRENDS",
+    "role": "NSM",
+    "roles": [
+     "NSM",
+     "RSM",
+     "ZSM",
+     "RCSM"
+    ],
+    "label": "Proposed",
+    "tab": "reports",
+    "note": "Day-by-day trends for every module (last 14 days and next 7 days) with the last 7 days against the 7 before, and 13 named reports that download every row in the TML scope (not only the visible page), with the file named after the report, scope, PV/EV and date"
    }
   ],
   "notUsed": [

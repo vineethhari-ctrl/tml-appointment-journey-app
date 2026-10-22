@@ -7,7 +7,7 @@
   const { table, pageRows, showing, pager, sel, inp, filterBtns } = App.ui;
   const views = App.modules.appointment.views, FU = M.followUps, T = App.tmlui;
   const { head, breakdown, csvStore, csvBtn, dname, reg } = T;
-  const LIST = D.followUps = D.followUps || [], WATCH = D.watch = D.watch || new Set();
+  const LIST = D.followUps = D.followUps || [], WATCH = D.watch = D.watch || new Set(D.watchIds || []);
   const OUT = D.outbox = D.outbox || [];   // messages sent from TML to the dealer application (simulated delivery)
   const thread = f => f.thread || (f.thread = [{ side: "tml", by: f.raisedBy, at: f.raised, text: (kindOf(f.kind) ? kindOf(f.kind).label : f.kind) + (f.note ? ": " + f.note : "") },
     ...(f.response ? [{ side: "dealer", by: "Dealer GM", at: f.raised, text: f.response }] : [])]);
@@ -106,7 +106,15 @@
     } else if (sec === "watch") {
       const vs = [...WATCH].map(findV).filter(v => v && inS(v));
       body = vs.length ? table([{ h: "Vehicle", f: v => `<b>${esc(reg(v.reg))}</b><br><small class="note">${esc(v.model)}</small>` }, { h: "Dealership", f: v => esc(dname(v.dealer)) }, { h: "Job card", f: v => v.jc ? esc(v.jc.id) + " · " + esc(App.jcui.STAGE[v.jc.stage] || v.jc.stage) : "–" }, { h: "Open follow-ups", num: 1, f: v => LIST.filter(x => x.visit === v.id && x.status !== "Closed").length }, { h: "", f: v => `<button class="btn small" data-h="tmlvj" data-id="${v.id}">Journey</button> ${App.fu.btn({ visit: v.id, ref: v.jc ? v.jc.id : v.id })} <button class="btn small" data-h="fuWatch" data-id="${v.id}">Remove</button>` }], vs, "Watchlist")
-        : '<p class="note">No vehicle on your watchlist. Use "Add to watchlist" on a vehicle page (Vehicle Journey Tracker).</p>';
+        : '<p class="note">No vehicle on your watchlist yet. Find a vehicle below and add it.</p>';
+      /* add a vehicle: search by registration, VIN, customer, model or job card; without a search, the vehicles that need attention */
+      const wq = App.norm(f.wq || ""), pool = D.visits.filter(v => inS(v) && !v.delivered), txt = v => App.norm([v.reg, v.vin, v.customer, v.model, v.jc ? v.jc.id : "", dname(v.dealer)].join(" "));
+      const needs = v => { const w = (App.vtl.waiting(v) || [])[0]; return w && w.over ? w.wait : -1; };
+      const cand = (wq ? pool.filter(v => txt(v).includes(wq)) : pool.filter(v => needs(v) >= 0).sort((a, b) => needs(b) - needs(a))).slice(0, 12);
+      const addBtn = v => `<button class="btn small${WATCH.has(v.id) ? "" : " primary"}" data-h="fuWatch" data-id="${esc(v.id)}" aria-pressed="${WATCH.has(v.id)}">${WATCH.has(v.id) ? "★ On watchlist (remove)" : "☆ Add to watchlist"}</button>`;
+      body += `<section class="card" style="margin-top:14px"><div class="card-h">ADD A VEHICLE TO THE WATCHLIST</div><div class="card-b"><div class="filters" role="search">${inp("f-wq", "Registration, VIN, customer, model or job card", f.wq)}<span class="grow"></span>${filterBtns()}</div>
+        <p class="note" style="margin:6px 0">${wq ? `${cand.length} vehicle${cand.length === 1 ? "" : "s"} found in ${esc(U[S.unit].name)} (vehicles inside the dealerships; delivered vehicles are not listed)` : "No search yet: showing the vehicles inside the dealerships that are past a limit or need attention, longest wait first. Type above to find any other vehicle."}</p>
+        ${cand.length ? table([{ h: "Vehicle", f: v => `<b>${esc(reg(v.reg))}</b><br><small class="note">${esc(v.model)} · ${esc(v.customer)}</small>` }, { h: "Dealership", f: v => esc(dname(v.dealer)) }, { h: "Job card", f: v => v.jc ? esc(v.jc.id) + " · " + esc(App.jcui.STAGE[v.jc.stage] || v.jc.stage) : "–" }, { h: "Waiting for", f: v => { const w = (App.vtl.waiting(v) || [])[0]; return w ? `<span style="white-space:normal;display:inline-block;max-width:300px">${esc(w.item)}${w.over ? ' <span class="txt-red">●</span>' : ""}</span>` : "–"; } }, { h: "", f: v => addBtn(v) + ` <button class="btn small" data-h="tmlvj" data-id="${esc(v.id)}">Journey</button>` }], cand, "Vehicles to add") : '<p class="note">No vehicle matches. Check the registration, or the scope and PV / EV in the scope bar.</p>'}</div></section>`;
     } else {
       const q = App.norm(f.q || ""), rows = LIST.filter(x => inS(x) && (!sec || FILT[sec](x)) && (!f.mod || x.module === f.mod) && (!q || [x.id, x.reg, x.ref, dname(x.dealer)].some(y => App.norm(y).includes(q)))).sort((a, b) => (overdue(b) - overdue(a)) || a.due.localeCompare(b.due));
       csvStore.followups = { cols: fuCols(false).filter(c => c.h).map(c => [c.h, r => (c.f(r) + "").replace(/<[^>]+>/g, " ").trim()]), rows };
