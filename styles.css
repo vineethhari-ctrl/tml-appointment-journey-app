@@ -529,3 +529,21 @@ ol.vj li.on { color: var(--text); } ol.vj li.on::before { background: var(--gree
 .modal .table-wrap { max-height: 52vh; }
 .rp-wide ~ .table-wrap td, .rp-wide ~ .table-wrap th { white-space: normal; }
 .rp-wide ~ .table-wrap td:nth-child(2) { min-width: 260px; }
+/* the demo reset button must not cover the content on a phone */
+@media (max-width: 860px) { #reset-demo { position: static !important; display: block; margin: 14px 16px 22px; opacity: 1 !important; } }
+@media (min-width: 861px) { .sidenav { padding-bottom: 56px; } }
+/* dialogs on a phone: nothing may run past the right edge */
+.modal { max-width: calc(100vw - 16px); }
+.modal-b, .modal-b > * { min-width: 0; }
+.modal-b .bd-box, .modal-b .bd-box * { overflow-wrap: anywhere; }
+.modal-b select, .modal-b input, .modal-b textarea { max-width: 100%; box-sizing: border-box; }
+@media (max-width: 860px) {
+  /* the report and record choosers become one card per report on a phone */
+  .rp-wide ~ .table-wrap { max-height: 58vh; }
+  .rp-wide ~ .table-wrap thead { display: none; }
+  .rp-wide ~ .table-wrap table, .rp-wide ~ .table-wrap tbody, .rp-wide ~ .table-wrap tr, .rp-wide ~ .table-wrap td { display: block; width: 100%; }
+  .rp-wide ~ .table-wrap tr { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .rp-wide ~ .table-wrap td, .rp-wide ~ .table-wrap td:first-child { padding: 2px 0; border: 0; white-space: normal; position: static; box-shadow: none; background: transparent; min-width: 0 !important; text-align: left; }
+  .rp-wide ~ .table-wrap td.num::before { content: "Rows: "; color: var(--muted); }
+  .rp-wide ~ .table-wrap td .btn { margin-top: 6px; }
+}
